@@ -14,3 +14,34 @@ Main features include:
 - Real-time messaging between tenant and host
 
 This project was developed as part of an academic full-stack development project.
+
+---
+
+## Getting Started with Docker Compose
+
+The project uses Docker Compose to run **PostgreSQL** locally.
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/products/docker-desktop/) installed and running
+
+### Start the services
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- **PostgreSQL 16** on port `5432` (database: `renthub_db`, user: `postgres`, password: `postgres`)
+
+### Stop the services
+
+```bash
+docker-compose down
+```
+
+To stop and remove all data (volumes):
+
+```bash
+docker-compose down -v
+```
