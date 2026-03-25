@@ -1,0 +1,34 @@
+package com.renthub.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    private String nom;
+
+    @Column(unique = true)
+    private String email;
+
+    private String password;
+
+    private String role;
+
+    @Column(name="photo_url")
+    private String photoUrl;
+
+    @Column(name="created_at")
+    private LocalDateTime createdAt;
+}
