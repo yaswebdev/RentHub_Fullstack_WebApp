@@ -33,10 +33,10 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setRole(req.getRole() != null ? req.getRole().toUpperCase() : "LOCATAIRE");
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
 
-        String token = jwtUtils.generateToken(user.getEmail());
-        return new AuthResponse(token, toDTO(user));
+        String token = jwtUtils.generateToken(savedUser.getEmail());
+        return new AuthResponse(token, toDTO(savedUser));
     }
 
     public AuthResponse login(LoginRequest req) {
