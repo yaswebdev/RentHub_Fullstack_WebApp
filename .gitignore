@@ -1,0 +1,7 @@
+# Local environment files
+.env
+backend/.env
+
+# Local editor/workflow folders
+.claude/
+.vscode/
