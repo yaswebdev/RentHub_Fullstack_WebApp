@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS annonces (
     user_id INTEGER NOT NULL,
     titre VARCHAR(200) NOT NULL,
     description TEXT,
-    prix_nuit DECIMAL(10,2) NOT NULL,
+    prix_nuit DOUBLE PRECISION NOT NULL,
     adresse TEXT NOT NULL,
-    latitude DECIMAL(10,8),
-    longitude DECIMAL(11,8),
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     disponibilite BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS annonces (
 CREATE TABLE IF NOT EXISTS photos (
     id SERIAL PRIMARY KEY,
     annonce_id INTEGER NOT NULL,
-    url TEXT NOT NULL,
+    photo_url TEXT NOT NULL,
 
     CONSTRAINT fk_photos_annonce
         FOREIGN KEY (annonce_id)
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS reservations (
 CREATE TABLE IF NOT EXISTS paiements (
     id SERIAL PRIMARY KEY,
     reservation_id INTEGER UNIQUE NOT NULL,
-    montant NUMERIC(10,2) NOT NULL,
+    montant DOUBLE PRECISION NOT NULL,
     statut VARCHAR(20) DEFAULT 'EN_ATTENTE'
         CHECK (statut IN ('EN_ATTENTE','PAYE','ECHEC')),
     stripe_payment_intent_id VARCHAR(255),
