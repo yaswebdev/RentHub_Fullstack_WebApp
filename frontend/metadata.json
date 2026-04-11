@@ -1,0 +1,7 @@
+{
+  "name": "RentHub",
+  "description": "A modern peer-to-peer apartment rental platform for hosts and travelers.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

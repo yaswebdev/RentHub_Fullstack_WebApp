@@ -1,0 +1,324 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the platform",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier for the user"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address"
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "url",
+          "description": "The user's profile photo URL"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "guest",
+            "host",
+            "admin"
+          ],
+          "description": "The user's role"
+        },
+        "bio": {
+          "type": "string",
+          "description": "The user's bio"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The user's phone number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the user account was created"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "role"
+      ]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "A rental property listed on the platform",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the property"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the property"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the property"
+        },
+        "image": {
+          "type": "string",
+          "format": "url",
+          "description": "The main image URL for the property"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "url"
+          },
+          "description": "Additional image URLs"
+        },
+        "pricePerNight": {
+          "type": "number",
+          "description": "The price per night"
+        },
+        "rating": {
+          "type": "number",
+          "description": "The average rating of the property"
+        },
+        "reviewCount": {
+          "type": "integer",
+          "description": "The number of reviews"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of property (e.g., Apartment, Loft)"
+        },
+        "location": {
+          "type": "object",
+          "description": "The location details"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of amenities"
+        },
+        "hostId": {
+          "type": "string",
+          "description": "The UID of the host"
+        },
+        "hostName": {
+          "type": "string",
+          "description": "The name of the host"
+        },
+        "hostPhoto": {
+          "type": "string",
+          "format": "url",
+          "description": "The photo URL of the host"
+        },
+        "isSuperhost": {
+          "type": "boolean",
+          "description": "Whether the host is a superhost"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the property was listed"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "image",
+        "pricePerNight",
+        "hostId"
+      ]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A booking for a property",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the booking"
+        },
+        "propertyId": {
+          "type": "string",
+          "description": "The ID of the property being booked"
+        },
+        "propertyTitle": {
+          "type": "string",
+          "description": "The title of the property"
+        },
+        "propertyImage": {
+          "type": "string",
+          "format": "url",
+          "description": "The image of the property"
+        },
+        "guestId": {
+          "type": "string",
+          "description": "The UID of the guest"
+        },
+        "guestName": {
+          "type": "string",
+          "description": "The name of the guest"
+        },
+        "hostId": {
+          "type": "string",
+          "description": "The UID of the host"
+        },
+        "hostName": {
+          "type": "string",
+          "description": "The name of the host"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "The start date of the booking"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date",
+          "description": "The end date of the booking"
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "The total price of the booking"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed",
+            "cancelled"
+          ],
+          "description": "The status of the booking"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the booking was made"
+        }
+      },
+      "required": [
+        "propertyId",
+        "guestId",
+        "startDate",
+        "endDate",
+        "totalPrice",
+        "status"
+      ]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat between two users",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the chat"
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of participant UIDs"
+        },
+        "participantDetails": {
+          "type": "object",
+          "description": "Details of participants (name, photo)"
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "The text of the last message"
+        },
+        "lastMessageTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the last message was sent"
+        },
+        "propertyId": {
+          "type": "string",
+          "description": "Optional property ID related to the chat"
+        },
+        "propertyTitle": {
+          "type": "string",
+          "description": "Optional property title related to the chat"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the chat was created"
+        }
+      },
+      "required": [
+        "participants",
+        "participantDetails"
+      ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the message"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "The UID of the sender"
+        },
+        "text": {
+          "type": "string",
+          "description": "The message text"
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the message has been read"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the message was sent"
+        }
+      },
+      "required": [
+        "senderId",
+        "text",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Rental properties"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Property bookings"
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat metadata"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages"
+    }
+  }
+}
