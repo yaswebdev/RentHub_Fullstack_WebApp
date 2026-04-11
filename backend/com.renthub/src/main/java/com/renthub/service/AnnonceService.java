@@ -43,6 +43,15 @@ public class AnnonceService {
     }
 
     @Transactional(readOnly = true)
+    public List<AnnonceDTO> getAnnoncesByHostEmail(String email) {
+        User host = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Hôte non trouvé"));
+        return annonceRepository.findByUserId(host.getId()).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<AnnonceDTO> searchAnnonces(String address) {
         return annonceRepository.findByAdresseContainingIgnoreCase(address).stream()
                 .map(this::toDTO)

@@ -26,26 +26,26 @@ export const CLE_UTILISATEUR = 'renthub.utilisateur';
  */
 export const ENDPOINTS = {
   // ── Authentification ──────────────────────────────────────────
-  AUTH_CONNEXION:        '/api/auth/connexion',
-  AUTH_INSCRIPTION:      '/api/auth/inscription',
+  AUTH_CONNEXION:        '/api/auth/login',
+  AUTH_INSCRIPTION:      '/api/auth/register',
   AUTH_DECONNEXION:      '/api/auth/deconnexion',
   AUTH_PROFIL:           '/api/auth/profil',
   AUTH_RAFRAICHIR_TOKEN: '/api/auth/rafraichir',
 
   // ── Propriétés ────────────────────────────────────────────────
-  PROPRIETES:            '/api/proprietes',
-  PROPRIETE:        (id) => `/api/proprietes/${id}`,
-  PROPRIETES_HOTE:       '/api/proprietes/mes-proprietes',
-  CREER_PROPRIETE:       '/api/proprietes',
-  MODIFIER_PROPRIETE:(id) => `/api/proprietes/${id}`,
-  SUPPRIMER_PROPRIETE:(id)=> `/api/proprietes/${id}`,
+  PROPRIETES:            '/api/annonces',
+  PROPRIETE:        (id) => `/api/annonces/${id}`,
+  PROPRIETES_HOTE:       '/api/annonces/me',
+  CREER_PROPRIETE:       '/api/annonces',
+  MODIFIER_PROPRIETE:(id) => `/api/annonces/${id}`,
+  SUPPRIMER_PROPRIETE:(id)=> `/api/annonces/${id}`,
 
   // ── Réservations ──────────────────────────────────────────────
   RESERVATIONS:          '/api/reservations',
   RESERVATION:      (id) => `/api/reservations/${id}`,
-  MES_RESERVATIONS:      '/api/reservations/mes-reservations',
+  MES_RESERVATIONS:      '/api/reservations/me',
   CREER_RESERVATION:     '/api/reservations',
-  ANNULER_RESERVATION:(id)=> `/api/reservations/${id}/annuler`,
+  ANNULER_RESERVATION:(id)=> `/api/reservations/${id}/status`,
 
   // ── Messagerie ────────────────────────────────────────────────
   CHATS:                 '/api/chats',

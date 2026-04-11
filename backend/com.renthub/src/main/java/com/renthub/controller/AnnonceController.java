@@ -40,6 +40,13 @@ public class AnnonceController {
         return ResponseEntity.ok(annonceService.getAnnoncesByHost(hostId));
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('HOTE', 'ADMIN')")
+    public ResponseEntity<List<AnnonceDTO>> getMyAnnonces(Authentication authentication) {
+        String userEmail = authentication.getName();
+        return ResponseEntity.ok(annonceService.getAnnoncesByHostEmail(userEmail));
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyRole('HOTE', 'ADMIN')")
     public ResponseEntity<AnnonceDTO> createAnnonce(@Valid @RequestBody AnnonceRequest request, Authentication authentication) {

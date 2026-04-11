@@ -47,7 +47,7 @@ export async function creerReservation(donnees) {
  */
 export async function annulerReservation(id) {
   if (API_BASE_URL) {
-    const { data } = await apiClient.patch(ENDPOINTS.ANNULER_RESERVATION(id));
+    const { data } = await apiClient.patch(ENDPOINTS.ANNULER_RESERVATION(id), { statut: 'ANNULEE' });
     return data;
   }
 
