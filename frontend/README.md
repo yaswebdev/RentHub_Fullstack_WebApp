@@ -48,8 +48,8 @@ Une expérience visuelle entièrement repensée pour le confort nocturne. Le mod
 
 1.  **Cloner le dépôt** :
     ```bash
-    git clone https://github.com/mamadox001/RenHub---Google-Ai-Studio.git
-    cd RenHub---Google-Ai-Studio
+    git clone https://github.com/mamadox001/RenHub-Maroc---FrontEnd.git
+    cd RenHub-Maroc---FrontEnd
     ```
 
 2.  **Installer les dépendances** :
