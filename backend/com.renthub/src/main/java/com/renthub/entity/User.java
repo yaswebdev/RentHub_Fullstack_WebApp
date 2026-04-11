@@ -2,6 +2,7 @@ package com.renthub.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
+@Builder
 public class User {
 
     @Id
@@ -26,9 +27,10 @@ public class User {
 
     private String role;
 
-    @Column(name="photo_url")
+    @Column(name = "photo_url")
     private String photoUrl;
 
-    @Column(name="created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }

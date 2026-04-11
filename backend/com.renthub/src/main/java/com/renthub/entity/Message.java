@@ -2,6 +2,7 @@ package com.renthub.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,7 +22,8 @@ public class Message {
 
     private Boolean lu;
 
-    @Column(name = "date_envoi")
+    @CreationTimestamp
+    @Column(name = "date_envoi", updatable = false)
     private LocalDateTime dateEnvoi;
 
     @ManyToOne

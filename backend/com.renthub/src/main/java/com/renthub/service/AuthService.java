@@ -27,11 +27,16 @@ public class AuthService {
             throw new RuntimeException("Cet email est déjà utilisé");
         }
 
+        String role = (req.getRole() != null) ? req.getRole().toUpperCase() : "LOCATAIRE";
+        if (!role.equals("LOCATAIRE") && !role.equals("HOTE")) {
+            throw new RuntimeException("Rôle invalide. Les rôles autorisés sont : LOCATAIRE, HOTE");
+        }
+
         User user = new User();
         user.setNom(req.getNom());
         user.setEmail(req.getEmail());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        user.setRole(req.getRole() != null ? req.getRole().toUpperCase() : "LOCATAIRE");
+        user.setRole(role);
 
         User savedUser = userRepository.save(user);
 

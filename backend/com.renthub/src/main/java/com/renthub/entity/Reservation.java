@@ -2,6 +2,9 @@ package com.renthub.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -20,13 +23,21 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "date_debut")
+    @Column(name = "date_debut", nullable = false)
     private LocalDate dateDebut;
 
-    @Column(name = "date_fin")
+    @Column(name = "date_fin", nullable = false)
     private LocalDate dateFin;
 
-    @Column(name = "created_at")
+    @Builder.Default
+    @Column(nullable = false)
+    private String statut = "EN_ATTENTE";
+
+    @Column(nullable = false)
+    private BigDecimal montant;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @ManyToOne

@@ -1,7 +1,22 @@
-# Local environment files
+# === Build outputs ===
+backend/com.renthub/target/
+
+# === Local environment ===
 .env
 backend/.env
 
-# Local editor/workflow folders
-.claude/
+# === IDE / Editor ===
+.idea/
+*.iml
 .vscode/
+.claude/
+*.swp
+*.swo
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === Node (for future frontend) ===
+node_modules/
+dist/
