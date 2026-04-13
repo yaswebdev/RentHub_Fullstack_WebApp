@@ -22,4 +22,8 @@ public class AnnonceDTO {
 
     // Photo URLs
     private List<String> photoUrls;
+
+    // Rating stats
+    private Double averageRating;
+    private Long reviewCount;
 }

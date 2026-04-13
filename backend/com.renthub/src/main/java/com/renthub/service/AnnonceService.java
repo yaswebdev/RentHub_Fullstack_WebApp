@@ -5,6 +5,7 @@ import com.renthub.dto.AnnonceRequest;
 import com.renthub.entity.Annonce;
 import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
+import com.renthub.repository.AvisRepository;
 import com.renthub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class AnnonceService {
 
     private final AnnonceRepository annonceRepository;
+    private final AvisRepository avisRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -136,6 +138,11 @@ public class AnnonceService {
                     .map(photo -> photo.getPhotoUrl())
                     .collect(Collectors.toList()));
         }
+
+        // Rating stats
+        Double avg = avisRepository.findAverageNoteByAnnonceId(annonce.getId());
+        dto.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+        dto.setReviewCount(avisRepository.countByAnnonceId(annonce.getId()));
 
         return dto;
     }

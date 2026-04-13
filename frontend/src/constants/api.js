@@ -55,6 +55,7 @@ export const ENDPOINTS = {
   CREER_CHAT:            '/api/chats',
 
   // ── Avis ──────────────────────────────────────────────────────
-  AVIS_PROPRIETE:   (id) => `/api/proprietes/${id}/avis`,
-  CREER_AVIS:       (id) => `/api/proprietes/${id}/avis`,
+  AVIS_PROPRIETE:   (id) => `/api/annonces/${id}/avis`,
+  AVIS_STATS:       (id) => `/api/annonces/${id}/avis/stats`,
+  CREER_AVIS:       (id) => `/api/annonces/${id}/avis`,
 };

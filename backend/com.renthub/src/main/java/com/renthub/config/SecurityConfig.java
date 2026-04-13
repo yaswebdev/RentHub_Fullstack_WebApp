@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/paiements/webhook").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/annonces/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/avis/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
