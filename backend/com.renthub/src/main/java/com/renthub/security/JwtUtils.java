@@ -2,6 +2,7 @@ package com.renthub.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,16 @@ public class JwtUtils {
 
     @Value("${app.jwt.expiration}")
     private long jwtExpiration;
+
+    @PostConstruct
+    public void validateConfig() {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException("JWT secret is not configured. Set JWT_SECRET environment variable.");
+        }
+        if (jwtSecret.length() < 32) {
+            throw new IllegalStateException("JWT secret is too short. Use at least 32 characters.");
+        }
+    }
 
     public String generateToken(String email) {
         return Jwts.builder()
