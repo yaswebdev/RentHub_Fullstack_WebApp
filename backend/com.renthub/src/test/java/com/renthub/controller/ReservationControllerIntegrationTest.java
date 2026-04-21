@@ -1,6 +1,7 @@
 package com.renthub.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.renthub.config.GlobalExceptionHandler;
 import com.renthub.dto.CreateReservationRequest;
 import com.renthub.dto.ReservationDTO;
 import com.renthub.service.ReservationService;
@@ -40,7 +41,10 @@ class ReservationControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(reservationController).build();
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(reservationController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     @Test
@@ -75,5 +79,31 @@ class ReservationControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(55))
                 .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
+    }
+
+    @Test
+    void createReservationShouldReturnBadRequestWhenDatesOverlap() throws Exception {
+        CreateReservationRequest request = new CreateReservationRequest();
+        request.setAnnonceId(10);
+        request.setDateDebut(LocalDate.now().plusDays(2));
+        request.setDateFin(LocalDate.now().plusDays(5));
+
+        when(reservationService.createReservation(any(CreateReservationRequest.class), eq("tenant@example.com")))
+                .thenThrow(new RuntimeException("Ces dates ne sont plus disponibles pour cette annonce."));
+
+        String payload = """
+            {
+              "annonceId": 10,
+              "dateDebut": "%s",
+              "dateFin": "%s"
+            }
+            """.formatted(request.getDateDebut(), request.getDateFin());
+
+        mockMvc.perform(post("/api/reservations")
+                        .principal(new UsernamePasswordAuthenticationToken("tenant@example.com", "N/A"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ces dates ne sont plus disponibles pour cette annonce."));
     }
 }

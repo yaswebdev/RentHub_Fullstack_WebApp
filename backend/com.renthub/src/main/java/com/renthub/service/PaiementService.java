@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -39,7 +40,7 @@ public class PaiementService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Reservation introuvable"));
 
-        if (reservation.getAnnonce() == null || reservation.getAnnonce().getPrixNuit() == null) {
+        if (reservation.getMontant() == null) {
             throw new RuntimeException("Impossible de calculer le montant de la réservation");
         }
 
@@ -59,7 +60,7 @@ public class PaiementService {
             );
         }
 
-        long amountInCents = Math.round(reservation.getAnnonce().getPrixNuit() * 100);
+        long amountInCents = toCents(reservation.getMontant());
 
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                 .setAmount(amountInCents)
@@ -71,7 +72,7 @@ public class PaiementService {
 
         Paiement paiement = Paiement.builder()
                 .reservation(reservation)
-                .montant(reservation.getAnnonce().getPrixNuit())
+                .montant(reservation.getMontant().doubleValue())
                 .statut("EN_ATTENTE")
                 .stripePaymentIntentId(intent.getId())
                 .createdAt(LocalDateTime.now())
@@ -88,7 +89,9 @@ public class PaiementService {
                 .orElseThrow(() -> new RuntimeException("Paiement introuvable pour ce PaymentIntent"));
 
         PaymentIntent intent = PaymentIntent.retrieve(paymentIntentId);
-        if ("requires_payment_method".equals(intent.getStatus())) {
+        String currentStatus = intent.getStatus();
+
+        if ("requires_payment_method".equals(currentStatus)) {
             if (paymentMethodId == null || paymentMethodId.isBlank()) {
                 throw new RuntimeException("paymentMethodId est obligatoire quand le paiement nécessite une méthode de paiement");
             }
@@ -97,7 +100,7 @@ public class PaiementService {
                             .setPaymentMethod(paymentMethodId)
                             .build()
             );
-        } else if ("requires_confirmation".equals(intent.getStatus())) {
+        } else if ("requires_confirmation".equals(currentStatus)) {
             PaymentIntentConfirmParams.Builder paramsBuilder = PaymentIntentConfirmParams.builder();
             if (paymentMethodId != null && !paymentMethodId.isBlank()) {
                 paramsBuilder.setPaymentMethod(paymentMethodId);
@@ -126,15 +129,25 @@ public class PaiementService {
         }
 
         String eventType = event.getType();
-        if ("payment_intent.succeeded".equals(eventType) || "payment_intent.payment_failed".equals(eventType)) {
+        if (eventType != null && eventType.startsWith("payment_intent.")) {
             PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
                     .getObject()
                     .orElseThrow(() -> new RuntimeException("Impossible de parser PaymentIntent"));
 
-            paiementRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(paiement -> {
-                syncStatusFromStripe(paiement, intent.getStatus());
-                paiementRepository.save(paiement);
-            });
+            Paiement paiement = paiementRepository.findByStripePaymentIntentId(intent.getId())
+                    .orElseThrow(() -> new RuntimeException("Paiement introuvable pour ce PaymentIntent"));
+
+            if (event.getId().equals(paiement.getLastStripeEventId())) {
+                return Map.of(
+                        "received", true,
+                        "type", eventType,
+                        "idempotent", true
+                );
+            }
+
+            syncStatusFromStripe(paiement, intent.getStatus());
+            paiement.setLastStripeEventId(event.getId());
+            paiementRepository.save(paiement);
         }
 
         return Map.of("received", true, "type", eventType);
@@ -148,18 +161,34 @@ public class PaiementService {
     }
 
     private void syncStatusFromStripe(Paiement paiement, String stripeStatus) {
-        if ("succeeded".equals(stripeStatus)) {
-            paiement.setStatut("PAYE");
+        if (stripeStatus == null || stripeStatus.isBlank()) {
+            paiement.setStatut("EN_ATTENTE");
             return;
         }
 
-        if ("payment_failed".equals(stripeStatus)
-                || "requires_payment_method".equals(stripeStatus)
-                || "canceled".equals(stripeStatus)) {
-            paiement.setStatut("ECHEC");
-            return;
+        switch (stripeStatus) {
+            case "succeeded":
+                paiement.setStatut("PAYE");
+                break;
+            case "canceled":
+            case "payment_failed":
+            case "requires_payment_method":
+                paiement.setStatut("ECHEC");
+                break;
+            case "requires_confirmation":
+            case "processing":
+            case "requires_action":
+            case "requires_capture":
+            default:
+                paiement.setStatut("EN_ATTENTE");
+                break;
         }
+    }
 
-        paiement.setStatut("EN_ATTENTE");
+    private long toCents(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Montant de réservation invalide");
+        }
+        return amount.movePointRight(2).longValue();
     }
 }
