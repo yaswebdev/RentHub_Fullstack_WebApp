@@ -74,11 +74,21 @@ public class ReservationService {
 
         User locataire = findUserByEmail(locataireEmail);
 
-        Annonce annonce = annonceRepository.findById(request.getAnnonceId())
+        // Acquire a write lock on the listing row to serialize competing reservation attempts.
+        Annonce annonce = annonceRepository.findByIdForUpdate(request.getAnnonceId())
                 .orElseThrow(() -> new RuntimeException("Annonce non trouvée avec l'ID : " + request.getAnnonceId()));
 
         if (!annonce.isDisponibilite()) {
             throw new RuntimeException("Cette annonce n'est pas disponible.");
+        }
+
+        boolean hasOverlap = reservationRepository.existsOverlappingActiveReservation(
+                annonce.getId(),
+                request.getDateDebut(),
+                request.getDateFin()
+        );
+        if (hasOverlap) {
+            throw new RuntimeException("Ces dates ne sont plus disponibles pour cette annonce.");
         }
 
         // Prevent host from booking own listing

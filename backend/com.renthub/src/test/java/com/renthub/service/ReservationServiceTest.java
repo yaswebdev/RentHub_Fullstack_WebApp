@@ -59,7 +59,12 @@ class ReservationServiceTest {
         request.setDateFin(LocalDate.now().plusDays(3));
 
         when(userRepository.findByEmail("host@example.com")).thenReturn(Optional.of(host));
-        when(annonceRepository.findById(11)).thenReturn(Optional.of(annonce));
+        when(annonceRepository.findByIdForUpdate(11)).thenReturn(Optional.of(annonce));
+        when(reservationRepository.existsOverlappingActiveReservation(
+            11,
+            request.getDateDebut(),
+            request.getDateFin()
+        )).thenReturn(false);
 
         RuntimeException ex = assertThrows(
                 RuntimeException.class,
@@ -67,6 +72,43 @@ class ReservationServiceTest {
         );
 
         assertEquals("Vous ne pouvez pas réserver votre propre annonce.", ex.getMessage());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+    }
+
+    @Test
+    void createReservationShouldThrowWhenDatesOverlapExistingActiveReservation() {
+        User host = new User();
+        host.setId(10);
+
+        User tenant = new User();
+        tenant.setId(4);
+        tenant.setEmail("tenant@example.com");
+
+        Annonce annonce = new Annonce();
+        annonce.setId(11);
+        annonce.setPrixNuit(95.0);
+        annonce.setDisponibilite(true);
+        annonce.setUser(host);
+
+        CreateReservationRequest request = new CreateReservationRequest();
+        request.setAnnonceId(11);
+        request.setDateDebut(LocalDate.now().plusDays(1));
+        request.setDateFin(LocalDate.now().plusDays(4));
+
+        when(userRepository.findByEmail("tenant@example.com")).thenReturn(Optional.of(tenant));
+        when(annonceRepository.findByIdForUpdate(11)).thenReturn(Optional.of(annonce));
+        when(reservationRepository.existsOverlappingActiveReservation(
+                11,
+                request.getDateDebut(),
+                request.getDateFin()
+        )).thenReturn(true);
+
+        RuntimeException ex = assertThrows(
+                RuntimeException.class,
+                () -> reservationService.createReservation(request, "tenant@example.com")
+        );
+
+        assertEquals("Ces dates ne sont plus disponibles pour cette annonce.", ex.getMessage());
         verify(reservationRepository, never()).save(any(Reservation.class));
     }
 

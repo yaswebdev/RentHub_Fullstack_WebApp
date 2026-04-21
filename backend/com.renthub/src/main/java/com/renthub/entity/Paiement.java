@@ -25,6 +25,9 @@ public class Paiement {
     @Column(name = "stripe_payment_intent_id")
     private String stripePaymentIntentId;
 
+    @Column(name = "last_stripe_event_id")
+    private String lastStripeEventId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

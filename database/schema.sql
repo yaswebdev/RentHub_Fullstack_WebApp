@@ -59,6 +59,29 @@ CREATE TABLE IF NOT EXISTS reservations (
         ON DELETE CASCADE
 );
 
+-- DB-level overlap protection (high-concurrency safety):
+-- For active reservations on the same annonce, date ranges cannot overlap.
+-- Requires btree_gist to combine equality (annonce_id) and range overlap operators.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'no_overlapping_active_reservations_per_annonce'
+    ) THEN
+        ALTER TABLE reservations
+        ADD CONSTRAINT no_overlapping_active_reservations_per_annonce
+        EXCLUDE USING gist (
+            annonce_id WITH =,
+            daterange(date_debut, date_fin, '[)') WITH &&
+        )
+        WHERE (statut IN ('EN_ATTENTE', 'CONFIRMEE', 'PAYEE'));
+    END IF;
+END
+$$;
+
 
 CREATE TABLE IF NOT EXISTS paiements (
     id SERIAL PRIMARY KEY,
@@ -67,6 +90,7 @@ CREATE TABLE IF NOT EXISTS paiements (
     statut VARCHAR(20) DEFAULT 'EN_ATTENTE'
         CHECK (statut IN ('EN_ATTENTE','PAYE','ECHEC')),
     stripe_payment_intent_id VARCHAR(255),
+    last_stripe_event_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_paiement_reservation
@@ -107,26 +131,29 @@ CREATE TABLE IF NOT EXISTS messages (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_annonces_user
+CREATE INDEX IF NOT EXISTS idx_annonces_user
 ON annonces(user_id);
 
-CREATE INDEX idx_reservations_annonce
+CREATE INDEX IF NOT EXISTS idx_reservations_annonce
 ON reservations(annonce_id);
 
-CREATE INDEX idx_reservations_locataire
+CREATE INDEX IF NOT EXISTS idx_reservations_locataire
 ON reservations(locataire_id);
 
-CREATE INDEX idx_messages_reservation
+CREATE INDEX IF NOT EXISTS idx_messages_reservation
 ON messages(reservation_id);
 
-CREATE INDEX idx_messages_expediteur
+CREATE INDEX IF NOT EXISTS idx_messages_expediteur
 ON messages(expediteur_id);
 
-CREATE INDEX idx_photos_annonce
+CREATE INDEX IF NOT EXISTS idx_photos_annonce
 ON photos(annonce_id);
 
-CREATE INDEX idx_paiement_reservation
+CREATE INDEX IF NOT EXISTS idx_paiement_reservation
 ON paiements(reservation_id);
 
-CREATE INDEX idx_avis_reservation
+CREATE INDEX IF NOT EXISTS idx_paiement_stripe_intent
+ON paiements(stripe_payment_intent_id);
+
+CREATE INDEX IF NOT EXISTS idx_avis_reservation
 ON avis(reservation_id);
