@@ -5,6 +5,7 @@ import com.renthub.dto.AnnonceRequest;
 import com.renthub.entity.Annonce;
 import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
+import com.renthub.repository.AvisRepository;
 import com.renthub.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ class AnnonceServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AvisRepository avisRepository;
 
     @InjectMocks
     private AnnonceService annonceService;
@@ -64,6 +68,8 @@ class AnnonceServiceTest {
 
         when(userRepository.findByEmail("host@example.com")).thenReturn(Optional.of(host));
         when(annonceRepository.save(any(Annonce.class))).thenReturn(saved);
+        when(avisRepository.findAverageNoteByAnnonceId(15)).thenReturn(null);
+        when(avisRepository.countByAnnonceId(15)).thenReturn(0L);
 
         AnnonceDTO result = annonceService.createAnnonce(request, "host@example.com");
 
