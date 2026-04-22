@@ -1,7 +1,6 @@
 package com.renthub.config;
 
 import com.renthub.security.JwtAuthFilter;
-import com.renthub.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
