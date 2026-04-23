@@ -4,6 +4,7 @@ import com.renthub.dto.CreateReservationRequest;
 import com.renthub.dto.ReservationDTO;
 import com.renthub.entity.Annonce;
 import com.renthub.entity.Reservation;
+import com.renthub.entity.Role;
 import com.renthub.entity.User;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.repository.AnnonceRepository;
@@ -116,7 +117,7 @@ class ReservationServiceTest {
 
         User tenant = new User();
         tenant.setId(2);
-        tenant.setRole("LOCATAIRE");
+        tenant.setRole(Role.LOCATAIRE);
         tenant.setEmail("tenant@example.com");
         tenant.setNom("Tenant One");
 

@@ -5,6 +5,7 @@ import com.renthub.dto.ReservationDTO;
 import com.renthub.entity.Annonce;
 import com.renthub.entity.Paiement;
 import com.renthub.entity.Reservation;
+import com.renthub.entity.Role;
 import com.renthub.entity.User;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.repository.PaiementRepository;
@@ -52,19 +53,19 @@ class CancellationServiceTest {
         host = new User();
         host.setId(1);
         host.setEmail("host@example.com");
-        host.setRole("HOTE");
+        host.setRole(Role.HOTE);
         host.setNom("Host User");
 
         tenant = new User();
         tenant.setId(2);
         tenant.setEmail("tenant@example.com");
-        tenant.setRole("LOCATAIRE");
+        tenant.setRole(Role.LOCATAIRE);
         tenant.setNom("Tenant User");
 
         admin = new User();
         admin.setId(99);
         admin.setEmail("admin@example.com");
-        admin.setRole("ADMIN");
+        admin.setRole(Role.ADMIN);
         admin.setNom("Admin User");
 
         annonce = new Annonce();
@@ -97,7 +98,7 @@ class CancellationServiceTest {
             User stranger = new User();
             stranger.setId(999);
             stranger.setEmail("stranger@example.com");
-            stranger.setRole("LOCATAIRE");
+            stranger.setRole(Role.LOCATAIRE);
 
             Reservation reservation = buildReservation("EN_ATTENTE",
                     LocalDate.now().plusDays(5), LocalDate.now().plusDays(10));

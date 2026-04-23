@@ -27,7 +27,8 @@ public class User {
     @JsonIgnore
     private String password;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     @Column(name = "photo_url")
     private String photoUrl;

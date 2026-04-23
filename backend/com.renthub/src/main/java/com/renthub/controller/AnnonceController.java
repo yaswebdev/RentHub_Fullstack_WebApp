@@ -5,6 +5,9 @@ import com.renthub.dto.AnnonceRequest;
 import com.renthub.service.AnnonceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +26,16 @@ public class AnnonceController {
     @GetMapping
     public ResponseEntity<List<AnnonceDTO>> getAllAnnonces() {
         return ResponseEntity.ok(annonceService.getAllAnnonces());
+    }
+
+    /**
+     * GET /api/annonces/page?page=0&size=12&sort=createdAt,desc
+     * Paginated listing for frontend infinite scroll / pagination.
+     */
+    @GetMapping("/page")
+    public ResponseEntity<Page<AnnonceDTO>> getAllAnnoncesPaginated(
+            @PageableDefault(size = 12, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(annonceService.getAllAnnonces(pageable));
     }
 
     @GetMapping("/{id}")

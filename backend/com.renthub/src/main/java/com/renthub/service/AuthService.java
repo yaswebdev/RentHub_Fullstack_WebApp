@@ -4,6 +4,7 @@ import com.renthub.dto.AuthResponse;
 import com.renthub.dto.LoginRequest;
 import com.renthub.dto.RegisterRequest;
 import com.renthub.dto.UserDTO;
+import com.renthub.entity.Role;
 import com.renthub.entity.User;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.exception.DuplicateResourceException;
@@ -30,8 +31,14 @@ public class AuthService {
             throw new DuplicateResourceException("Cet email est déjà utilisé");
         }
 
-        String role = (req.getRole() != null) ? req.getRole().toUpperCase() : "LOCATAIRE";
-        if (!role.equals("LOCATAIRE") && !role.equals("HOTE")) {
+        String roleStr = (req.getRole() != null) ? req.getRole().toUpperCase() : "LOCATAIRE";
+        Role role;
+        try {
+            role = Role.valueOf(roleStr);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessRuleException("Rôle invalide. Les rôles autorisés sont : LOCATAIRE, HOTE");
+        }
+        if (role == Role.ADMIN) {
             throw new BusinessRuleException("Rôle invalide. Les rôles autorisés sont : LOCATAIRE, HOTE");
         }
 
@@ -64,7 +71,7 @@ public class AuthService {
         dto.setId(user.getId());
         dto.setNom(user.getNom());
         dto.setEmail(user.getEmail());
-        dto.setRole(user.getRole());
+        dto.setRole(user.getRole().name());
         dto.setPhotoUrl(user.getPhotoUrl());
         dto.setCreatedAt(user.getCreatedAt());
         return dto;

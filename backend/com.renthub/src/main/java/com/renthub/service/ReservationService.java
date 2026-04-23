@@ -15,6 +15,7 @@ import com.renthub.exception.ResourceNotFoundException;
 import com.renthub.dto.RefundStatusDTO;
 import com.renthub.dto.CancelReservationRequest;
 import com.renthub.entity.Paiement;
+import com.renthub.entity.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -72,7 +73,7 @@ public class ReservationService {
 
         boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
         boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
-        boolean isAdmin = user.getRole().equals("ADMIN");
+        boolean isAdmin = user.getRole() == Role.ADMIN;
 
         if (!isHost && !isLocataire && !isAdmin) {
             throw new AccessDeniedException("Non autorisé à consulter cette réservation");
@@ -136,7 +137,7 @@ public class ReservationService {
 
         boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
         boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
-        boolean isAdmin = user.getRole().equals("ADMIN");
+        boolean isAdmin = user.getRole() == Role.ADMIN;
 
         if (!isHost && !isAdmin && !isLocataire) {
             throw new AccessDeniedException("Non autorisé à modifier cette réservation");
@@ -196,7 +197,7 @@ public class ReservationService {
 
         boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
         boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
-        boolean isAdmin = "ADMIN".equals(user.getRole());
+        boolean isAdmin = user.getRole() == Role.ADMIN;
 
         if (!isHost && !isLocataire && !isAdmin) {
             throw new org.springframework.security.access.AccessDeniedException("Non autorisé à annuler cette réservation");
@@ -253,7 +254,7 @@ public class ReservationService {
 
         boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
         boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
-        boolean isAdmin = "ADMIN".equals(user.getRole());
+        boolean isAdmin = user.getRole() == Role.ADMIN;
 
         if (!isHost && !isLocataire && !isAdmin) {
             throw new org.springframework.security.access.AccessDeniedException("Non autorisé à consulter cette réservation");

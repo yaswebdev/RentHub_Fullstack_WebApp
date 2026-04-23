@@ -11,6 +11,7 @@ import com.renthub.repository.UserRepository;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.exception.DuplicateResourceException;
 import com.renthub.exception.ResourceNotFoundException;
+import com.renthub.entity.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -116,7 +117,7 @@ public class AvisService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         boolean isAuthor = avis.getReservation().getLocataire().getId().equals(user.getId());
-        boolean isAdmin = "ADMIN".equals(user.getRole());
+        boolean isAdmin = user.getRole() == Role.ADMIN;
 
         if (!isAuthor && !isAdmin) {
             throw new AccessDeniedException("Non autorisé à supprimer cet avis");

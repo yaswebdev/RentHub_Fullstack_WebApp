@@ -3,6 +3,7 @@ package com.renthub.service;
 import com.renthub.dto.AnnonceDTO;
 import com.renthub.dto.AnnonceRequest;
 import com.renthub.entity.Annonce;
+import com.renthub.entity.Role;
 import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
 import com.renthub.repository.AvisRepository;
@@ -52,7 +53,7 @@ class AnnonceServiceTest {
         host.setId(7);
         host.setNom("Host One");
         host.setEmail("host@example.com");
-        host.setRole("HOTE");
+        host.setRole(Role.HOTE);
 
         Annonce saved = Annonce.builder()
                 .id(15)
@@ -90,7 +91,7 @@ class AnnonceServiceTest {
 
         User anotherHost = new User();
         anotherHost.setId(2);
-        anotherHost.setRole("HOTE");
+        anotherHost.setRole(Role.HOTE);
         anotherHost.setEmail("other@example.com");
 
         AnnonceRequest request = new AnnonceRequest();

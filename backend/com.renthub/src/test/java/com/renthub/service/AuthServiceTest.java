@@ -3,6 +3,7 @@ package com.renthub.service;
 import com.renthub.dto.AuthResponse;
 import com.renthub.dto.LoginRequest;
 import com.renthub.dto.RegisterRequest;
+import com.renthub.entity.Role;
 import com.renthub.entity.User;
 import com.renthub.repository.UserRepository;
 import com.renthub.security.JwtUtils;
@@ -56,7 +57,7 @@ class AuthServiceTest {
         savedUser.setNom("Yassine");
         savedUser.setEmail("yassine@example.com");
         savedUser.setPassword("encoded-secret");
-        savedUser.setRole("HOTE");
+        savedUser.setRole(Role.HOTE);
 
         when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(req.getPassword())).thenReturn("encoded-secret");
@@ -94,7 +95,7 @@ class AuthServiceTest {
         user.setId(5);
         user.setNom("Yassine");
         user.setEmail("yassine@example.com");
-        user.setRole("LOCATAIRE");
+        user.setRole(Role.LOCATAIRE);
 
         when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.of(user));
         when(jwtUtils.generateToken(user.getEmail())).thenReturn("jwt-login");

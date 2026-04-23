@@ -26,7 +26,7 @@ public class UserService {
         dto.setId(user.getId());
         dto.setNom(user.getNom());
         dto.setEmail(user.getEmail());
-        dto.setRole(user.getRole());
+        dto.setRole(user.getRole().name());
         dto.setPhotoUrl(user.getPhotoUrl());
         dto.setCreatedAt(user.getCreatedAt());
         return dto;

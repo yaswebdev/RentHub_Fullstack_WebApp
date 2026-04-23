@@ -8,7 +8,10 @@ import com.renthub.repository.AnnonceRepository;
 import com.renthub.repository.AvisRepository;
 import com.renthub.repository.UserRepository;
 import com.renthub.exception.ResourceNotFoundException;
+import com.renthub.entity.Role;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,16 @@ public class AnnonceService {
         return annonceRepository.findAllWithDetails().stream()
                 .map(a -> toDTO(a, ratingMap))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Paginated version — use ?page=0&size=12&sort=createdAt,desc
+     */
+    @Transactional(readOnly = true)
+    public Page<AnnonceDTO> getAllAnnonces(Pageable pageable) {
+        Map<Integer, double[]> ratingMap = buildRatingMap();
+        return annonceRepository.findAll(pageable)
+                .map(a -> toDTO(a, ratingMap));
     }
 
     @Transactional(readOnly = true)
@@ -92,7 +105,7 @@ public class AnnonceService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        if (!user.getRole().equals("ADMIN") && !annonce.getUser().getId().equals(user.getId())) {
+        if (user.getRole() != Role.ADMIN && !annonce.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Non autorisé à modifier cette annonce");
         }
 
@@ -114,7 +127,7 @@ public class AnnonceService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        if (!user.getRole().equals("ADMIN") && !annonce.getUser().getId().equals(user.getId())) {
+        if (user.getRole() != Role.ADMIN && !annonce.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Non autorisé à supprimer cette annonce");
         }
 
