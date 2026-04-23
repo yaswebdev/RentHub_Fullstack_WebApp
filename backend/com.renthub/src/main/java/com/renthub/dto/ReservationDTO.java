@@ -17,4 +17,5 @@ public class ReservationDTO {
     private String statut;
     private BigDecimal montant;
     private LocalDateTime createdAt;
+    private String cancellationReason;
 }

@@ -47,4 +47,7 @@ public class Reservation {
     @ManyToOne
     @JoinColumn(name = "locataire_id")
     private User locataire;
+
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
 }

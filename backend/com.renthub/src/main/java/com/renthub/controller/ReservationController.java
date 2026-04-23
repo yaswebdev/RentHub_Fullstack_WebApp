@@ -1,6 +1,8 @@
 package com.renthub.controller;
 
+import com.renthub.dto.CancelReservationRequest;
 import com.renthub.dto.CreateReservationRequest;
+import com.renthub.dto.RefundStatusDTO;
 import com.renthub.dto.ReservationDTO;
 import com.renthub.dto.UpdateReservationStatusRequest;
 import com.renthub.service.ReservationService;
@@ -52,5 +54,29 @@ public class ReservationController {
     public ResponseEntity<ReservationDTO> updateReservationStatus(@PathVariable Integer id, @Valid @RequestBody UpdateReservationStatusRequest request, Authentication authentication) {
         String userEmail = authentication.getName();
         return ResponseEntity.ok(reservationService.updateReservationStatus(id, request, userEmail));
+    }
+
+    /**
+     * POST /api/reservations/{id}/cancel — Cancel a reservation with optional reason.
+     * Triggers automatic Stripe refund for paid bookings.
+     */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ReservationDTO> cancelReservation(
+            @PathVariable Integer id,
+            @RequestBody(required = false) CancelReservationRequest request,
+            Authentication authentication) {
+        String userEmail = authentication.getName();
+        return ResponseEntity.ok(reservationService.cancelReservation(id, request, userEmail));
+    }
+
+    /**
+     * GET /api/reservations/{id}/refund-status — Get refund status for frontend polling.
+     */
+    @GetMapping("/{id}/refund-status")
+    public ResponseEntity<RefundStatusDTO> getRefundStatus(
+            @PathVariable Integer id,
+            Authentication authentication) {
+        String userEmail = authentication.getName();
+        return ResponseEntity.ok(reservationService.getRefundStatus(id, userEmail));
     }
 }

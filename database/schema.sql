@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     statut VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE'
         CHECK (statut IN ('EN_ATTENTE', 'CONFIRMEE', 'REFUSEE', 'PAYEE', 'ANNULEE', 'TERMINEE')),
     montant NUMERIC(10, 2) NOT NULL,
+    cancellation_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_reservation_annonce
@@ -87,9 +88,10 @@ CREATE TABLE IF NOT EXISTS paiements (
     id SERIAL PRIMARY KEY,
     reservation_id INTEGER UNIQUE NOT NULL,
     montant DOUBLE PRECISION NOT NULL,
-    statut VARCHAR(20) DEFAULT 'EN_ATTENTE'
-        CHECK (statut IN ('EN_ATTENTE','PAYE','ECHEC')),
+    statut VARCHAR(30) DEFAULT 'EN_ATTENTE'
+        CHECK (statut IN ('EN_ATTENTE','PAYE','ECHEC','REFUND_PENDING','REFUNDED','REFUND_FAILED')),
     stripe_payment_intent_id VARCHAR(255),
+    stripe_refund_id VARCHAR(255),
     last_stripe_event_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

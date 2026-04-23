@@ -7,15 +7,20 @@ import com.renthub.entity.Annonce;
 import com.renthub.entity.Reservation;
 import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
+import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.exception.ResourceNotFoundException;
+import com.renthub.dto.RefundStatusDTO;
+import com.renthub.dto.CancelReservationRequest;
+import com.renthub.entity.Paiement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -29,9 +34,17 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final AnnonceRepository annonceRepository;
     private final UserRepository userRepository;
+    private final PaiementRepository paiementRepository;
+    private final PaiementService paiementService;
 
+    /** Statuses allowed via the generic PATCH endpoint (ANNULEE excluded — use /cancel instead) */
     private static final Set<String> VALID_STATUSES = Set.of(
-            "EN_ATTENTE", "CONFIRMEE", "REFUSEE", "PAYEE", "ANNULEE", "TERMINEE"
+            "EN_ATTENTE", "CONFIRMEE", "REFUSEE", "PAYEE", "TERMINEE"
+    );
+
+    /** Statuses that can be cancelled */
+    private static final Set<String> CANCELLABLE_STATUSES = Set.of(
+            "EN_ATTENTE", "CONFIRMEE", "PAYEE"
     );
 
     @Transactional(readOnly = true)
@@ -136,9 +149,9 @@ public class ReservationService {
             throw new BusinessRuleException("Statut invalide : '" + newStatus + "'. Valeurs acceptées : " + VALID_STATUSES);
         }
 
-        // Tenants can only cancel
-        if (isLocataire && !isAdmin && !newStatus.equals("ANNULEE")) {
-            throw new BusinessRuleException("Un locataire ne peut qu'annuler une réservation");
+        // Tenants can only set ANNULEE via the dedicated cancel endpoint
+        if (isLocataire && !isAdmin) {
+            throw new BusinessRuleException("Les locataires doivent utiliser l'endpoint d'annulation");
         }
 
         reservation.setStatut(newStatus);
@@ -162,6 +175,100 @@ public class ReservationService {
         dto.setStatut(reservation.getStatut());
         dto.setMontant(reservation.getMontant());
         dto.setCreatedAt(reservation.getCreatedAt());
+        dto.setCancellationReason(reservation.getCancellationReason());
         return dto;
+    }
+
+    // ─── Cancellation ────────────────────────────────────────────
+
+    /**
+     * Cancel a reservation with full business rules:
+     * - Guest: can cancel only before start date, only EN_ATTENTE/CONFIRMEE/PAYEE
+     * - Host/Admin: can force-cancel with reason
+     * - Auto-refund if the booking was paid
+     */
+    @Transactional
+    public ReservationDTO cancelReservation(Integer id, CancelReservationRequest request, String userEmail) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation non trouvée avec l'ID : " + id));
+
+        User user = findUserByEmail(userEmail);
+
+        boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
+        boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
+        boolean isAdmin = "ADMIN".equals(user.getRole());
+
+        if (!isHost && !isLocataire && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Non autorisé à annuler cette réservation");
+        }
+
+        // Block cancellation for already cancelled/completed/refused
+        if (!CANCELLABLE_STATUSES.contains(reservation.getStatut())) {
+            throw new BusinessRuleException(
+                    "Impossible d'annuler une réservation au statut '" + reservation.getStatut() + "'");
+        }
+
+        // Guest: can only cancel before start date
+        if (isLocataire && !isAdmin) {
+            if (!LocalDate.now().isBefore(reservation.getDateDebut())) {
+                throw new BusinessRuleException(
+                        "Un locataire ne peut annuler qu'avant la date de début du séjour");
+            }
+        }
+
+        // Set cancellation reason (hosts/admins can provide one)
+        if (request != null && request.getReason() != null && !request.getReason().isBlank()) {
+            reservation.setCancellationReason(request.getReason());
+        } else if (isLocataire) {
+            reservation.setCancellationReason("Annulée par le locataire");
+        } else if (isHost) {
+            reservation.setCancellationReason("Annulée par l'hôte");
+        } else {
+            reservation.setCancellationReason("Annulée par l'administrateur");
+        }
+
+        // If the booking was paid, trigger Stripe refund
+        boolean wasPaid = "PAYEE".equals(reservation.getStatut());
+        if (wasPaid) {
+            try {
+                paiementService.createRefund(reservation.getId());
+            } catch (com.stripe.exception.StripeException e) {
+                throw new BusinessRuleException("Erreur lors du remboursement Stripe : " + e.getMessage());
+            }
+        }
+
+        reservation.setStatut("ANNULEE");
+        return toDTO(reservationRepository.save(reservation));
+    }
+
+    /**
+     * Get refund status for a reservation (used by frontend polling).
+     */
+    @Transactional(readOnly = true)
+    public RefundStatusDTO getRefundStatus(Integer id, String userEmail) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation non trouvée avec l'ID : " + id));
+
+        User user = findUserByEmail(userEmail);
+
+        boolean isHost = reservation.getAnnonce().getUser().getId().equals(user.getId());
+        boolean isLocataire = reservation.getLocataire().getId().equals(user.getId());
+        boolean isAdmin = "ADMIN".equals(user.getRole());
+
+        if (!isHost && !isLocataire && !isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Non autorisé à consulter cette réservation");
+        }
+
+        Paiement paiement = paiementRepository.findByReservationId(id).orElse(null);
+
+        return RefundStatusDTO.builder()
+                .reservationId(reservation.getId())
+                .reservationStatut(reservation.getStatut())
+                .paiementStatut(paiement != null ? paiement.getStatut() : null)
+                .stripeRefundId(paiement != null ? paiement.getStripeRefundId() : null)
+                .montantRembourse(paiement != null && "REFUNDED".equals(paiement.getStatut())
+                        ? paiement.getMontant() : null)
+                .cancellationReason(reservation.getCancellationReason())
+                .build();
     }
 }

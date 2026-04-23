@@ -3,6 +3,8 @@ package com.renthub.service;
 import com.renthub.dto.PaymentIntentResponse;
 import com.renthub.entity.Paiement;
 import com.renthub.entity.Reservation;
+import com.renthub.exception.BusinessRuleException;
+import com.renthub.exception.ResourceNotFoundException;
 import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
 import com.stripe.Stripe;
@@ -10,16 +12,20 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
+import com.stripe.param.RefundCreateParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,19 +40,24 @@ public class PaiementService {
     @Value("${stripe.webhook.secret:}")
     private String stripeWebhookSecret;
 
+    /** Statuses that mean a refund is already in progress or completed */
+    private static final Set<String> REFUND_STATUSES = Set.of("REFUND_PENDING", "REFUNDED", "REFUND_FAILED");
+
+    // ─── Payment Intent ──────────────────────────────────────────
+
     public PaymentIntentResponse createPaymentIntent(Integer reservationId) throws StripeException {
         initStripe();
 
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reservation introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
 
         if (reservation.getMontant() == null) {
-            throw new RuntimeException("Impossible de calculer le montant de la réservation");
+            throw new BusinessRuleException("Impossible de calculer le montant de la réservation");
         }
 
         Paiement existing = paiementRepository.findByReservationId(reservationId).orElse(null);
         if (existing != null && "PAYE".equalsIgnoreCase(existing.getStatut())) {
-            throw new RuntimeException("Cette réservation est déjà payée");
+            throw new BusinessRuleException("Cette réservation est déjà payée");
         }
 
         if (existing != null && existing.getStripePaymentIntentId() != null) {
@@ -86,14 +97,14 @@ public class PaiementService {
         initStripe();
 
         Paiement paiement = paiementRepository.findByStripePaymentIntentId(paymentIntentId)
-                .orElseThrow(() -> new RuntimeException("Paiement introuvable pour ce PaymentIntent"));
+                .orElseThrow(() -> new ResourceNotFoundException("Paiement introuvable pour ce PaymentIntent"));
 
         PaymentIntent intent = PaymentIntent.retrieve(paymentIntentId);
         String currentStatus = intent.getStatus();
 
         if ("requires_payment_method".equals(currentStatus)) {
             if (paymentMethodId == null || paymentMethodId.isBlank()) {
-                throw new RuntimeException("paymentMethodId est obligatoire quand le paiement nécessite une méthode de paiement");
+                throw new BusinessRuleException("paymentMethodId est obligatoire");
             }
             intent = intent.confirm(
                     PaymentIntentConfirmParams.builder()
@@ -114,6 +125,64 @@ public class PaiementService {
         return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), paiement.getStatut());
     }
 
+    // ─── Refund ──────────────────────────────────────────────────
+
+    /**
+     * Create a Stripe refund for a paid reservation.
+     * Idempotent: if a refund already exists, returns without creating a duplicate.
+     */
+    @Transactional
+    public Paiement createRefund(Integer reservationId) throws StripeException {
+        initStripe();
+
+        Paiement paiement = paiementRepository.findByReservationId(reservationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Aucun paiement trouvé pour la réservation ID : " + reservationId));
+
+        // Idempotency: already refunded or in progress
+        if (REFUND_STATUSES.contains(paiement.getStatut())) {
+            return paiement;
+        }
+
+        // Can only refund a paid booking
+        if (!"PAYE".equals(paiement.getStatut())) {
+            throw new BusinessRuleException("Impossible de rembourser un paiement qui n'est pas au statut PAYE");
+        }
+
+        if (paiement.getStripePaymentIntentId() == null) {
+            throw new BusinessRuleException("Pas de PaymentIntent Stripe associé à ce paiement");
+        }
+
+        // Set to pending before calling Stripe (crash safety)
+        paiement.setStatut("REFUND_PENDING");
+        paiementRepository.save(paiement);
+
+        try {
+            RefundCreateParams refundParams = RefundCreateParams.builder()
+                    .setPaymentIntent(paiement.getStripePaymentIntentId())
+                    .build();
+
+            Refund refund = Refund.create(refundParams);
+            paiement.setStripeRefundId(refund.getId());
+
+            if ("succeeded".equals(refund.getStatus())) {
+                paiement.setStatut("REFUNDED");
+            } else if ("failed".equals(refund.getStatus())) {
+                paiement.setStatut("REFUND_FAILED");
+            }
+            // else stays REFUND_PENDING (Stripe processes async)
+
+        } catch (StripeException e) {
+            paiement.setStatut("REFUND_FAILED");
+            paiementRepository.save(paiement);
+            throw e;
+        }
+
+        return paiementRepository.save(paiement);
+    }
+
+    // ─── Webhook ─────────────────────────────────────────────────
+
     public Map<String, Object> handleWebhook(String signature, String payload) {
         initStripe();
 
@@ -129,29 +198,48 @@ public class PaiementService {
         }
 
         String eventType = event.getType();
+
+        // Handle payment_intent events
         if (eventType != null && eventType.startsWith("payment_intent.")) {
             PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
                     .getObject()
                     .orElseThrow(() -> new RuntimeException("Impossible de parser PaymentIntent"));
 
-            Paiement paiement = paiementRepository.findByStripePaymentIntentId(intent.getId())
-                    .orElseThrow(() -> new RuntimeException("Paiement introuvable pour ce PaymentIntent"));
+            paiementRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(paiement -> {
+                if (!event.getId().equals(paiement.getLastStripeEventId())) {
+                    syncStatusFromStripe(paiement, intent.getStatus());
+                    paiement.setLastStripeEventId(event.getId());
+                    paiementRepository.save(paiement);
+                }
+            });
+        }
 
-            if (event.getId().equals(paiement.getLastStripeEventId())) {
-                return Map.of(
-                        "received", true,
-                        "type", eventType,
-                        "idempotent", true
-                );
+        // Handle charge.refunded events
+        if ("charge.refunded".equals(eventType) || "charge.refund.updated".equals(eventType)) {
+            try {
+                com.stripe.model.Charge charge = (com.stripe.model.Charge) event.getDataObjectDeserializer()
+                        .getObject()
+                        .orElse(null);
+                if (charge != null && charge.getPaymentIntent() != null) {
+                    paiementRepository.findByStripePaymentIntentId(charge.getPaymentIntent()).ifPresent(paiement -> {
+                        if (!event.getId().equals(paiement.getLastStripeEventId())) {
+                            if (charge.getRefunded()) {
+                                paiement.setStatut("REFUNDED");
+                            }
+                            paiement.setLastStripeEventId(event.getId());
+                            paiementRepository.save(paiement);
+                        }
+                    });
+                }
+            } catch (ClassCastException ignored) {
+                // Not a charge object, skip
             }
-
-            syncStatusFromStripe(paiement, intent.getStatus());
-            paiement.setLastStripeEventId(event.getId());
-            paiementRepository.save(paiement);
         }
 
         return Map.of("received", true, "type", eventType);
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────
 
     private void initStripe() {
         if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
@@ -161,6 +249,11 @@ public class PaiementService {
     }
 
     private void syncStatusFromStripe(Paiement paiement, String stripeStatus) {
+        // Don't overwrite refund states with payment states
+        if (REFUND_STATUSES.contains(paiement.getStatut())) {
+            return;
+        }
+
         if (stripeStatus == null || stripeStatus.isBlank()) {
             paiement.setStatut("EN_ATTENTE");
             return;
@@ -187,7 +280,7 @@ public class PaiementService {
 
     private long toCents(BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Montant de réservation invalide");
+            throw new BusinessRuleException("Montant de réservation invalide");
         }
         return amount.movePointRight(2).longValue();
     }
