@@ -2,11 +2,12 @@ package com.renthub.service;
 
 import com.renthub.dto.CreateReservationRequest;
 import com.renthub.dto.ReservationDTO;
-import com.renthub.dto.UpdateReservationStatusRequest;
 import com.renthub.entity.Annonce;
 import com.renthub.entity.Reservation;
 import com.renthub.entity.User;
+import com.renthub.exception.BusinessRuleException;
 import com.renthub.repository.AnnonceRepository;
+import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -29,14 +29,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReservationServiceTest {
 
-    @Mock
-    private ReservationRepository reservationRepository;
-
-    @Mock
-    private AnnonceRepository annonceRepository;
-
-    @Mock
-    private UserRepository userRepository;
+    @Mock private ReservationRepository reservationRepository;
+    @Mock private AnnonceRepository annonceRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private PaiementRepository paiementRepository;
+    @Mock private PaiementService paiementService;
 
     @InjectMocks
     private ReservationService reservationService;
@@ -66,8 +63,8 @@ class ReservationServiceTest {
             request.getDateFin()
         )).thenReturn(false);
 
-        RuntimeException ex = assertThrows(
-                RuntimeException.class,
+        BusinessRuleException ex = assertThrows(
+                BusinessRuleException.class,
                 () -> reservationService.createReservation(request, "host@example.com")
         );
 
@@ -103,8 +100,8 @@ class ReservationServiceTest {
                 request.getDateFin()
         )).thenReturn(true);
 
-        RuntimeException ex = assertThrows(
-                RuntimeException.class,
+        BusinessRuleException ex = assertThrows(
+                BusinessRuleException.class,
                 () -> reservationService.createReservation(request, "tenant@example.com")
         );
 
@@ -113,7 +110,7 @@ class ReservationServiceTest {
     }
 
     @Test
-    void updateReservationStatusShouldAllowTenantCancellation() {
+    void tenantCannotUseGenericPatchToCancel() {
         User host = new User();
         host.setId(1);
 
@@ -137,16 +134,14 @@ class ReservationServiceTest {
                 .dateFin(LocalDate.now().plusDays(2))
                 .build();
 
-        UpdateReservationStatusRequest request = new UpdateReservationStatusRequest();
-        request.setStatut("annulee");
+        com.renthub.dto.UpdateReservationStatusRequest request = new com.renthub.dto.UpdateReservationStatusRequest();
+        request.setStatut("CONFIRMEE");
 
         when(reservationRepository.findById(20)).thenReturn(Optional.of(reservation));
         when(userRepository.findByEmail("tenant@example.com")).thenReturn(Optional.of(tenant));
-        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ReservationDTO result = reservationService.updateReservationStatus(20, request, "tenant@example.com");
-
-        assertNotNull(result);
-        assertEquals("ANNULEE", result.getStatut());
+        // Tenants should be blocked from using the generic PATCH endpoint
+        assertThrows(BusinessRuleException.class,
+                () -> reservationService.updateReservationStatus(20, request, "tenant@example.com"));
     }
 }

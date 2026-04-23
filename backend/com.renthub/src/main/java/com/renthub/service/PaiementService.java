@@ -133,8 +133,6 @@ public class PaiementService {
      */
     @Transactional
     public Paiement createRefund(Integer reservationId) throws StripeException {
-        initStripe();
-
         Paiement paiement = paiementRepository.findByReservationId(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Aucun paiement trouvé pour la réservation ID : " + reservationId));
@@ -152,6 +150,9 @@ public class PaiementService {
         if (paiement.getStripePaymentIntentId() == null) {
             throw new BusinessRuleException("Pas de PaymentIntent Stripe associé à ce paiement");
         }
+
+        // Only init Stripe when we actually need to call the API
+        initStripe();
 
         // Set to pending before calling Stripe (crash safety)
         paiement.setStatut("REFUND_PENDING");
