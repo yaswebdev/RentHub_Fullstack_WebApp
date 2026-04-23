@@ -5,6 +5,9 @@ import com.renthub.dto.LoginRequest;
 import com.renthub.dto.RegisterRequest;
 import com.renthub.dto.UserDTO;
 import com.renthub.entity.User;
+import com.renthub.exception.BusinessRuleException;
+import com.renthub.exception.DuplicateResourceException;
+import com.renthub.exception.ResourceNotFoundException;
 import com.renthub.repository.UserRepository;
 import com.renthub.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -24,12 +27,12 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest req) {
         if (userRepository.findByEmail(req.getEmail()).isPresent()) {
-            throw new RuntimeException("Cet email est déjà utilisé");
+            throw new DuplicateResourceException("Cet email est déjà utilisé");
         }
 
         String role = (req.getRole() != null) ? req.getRole().toUpperCase() : "LOCATAIRE";
         if (!role.equals("LOCATAIRE") && !role.equals("HOTE")) {
-            throw new RuntimeException("Rôle invalide. Les rôles autorisés sont : LOCATAIRE, HOTE");
+            throw new BusinessRuleException("Rôle invalide. Les rôles autorisés sont : LOCATAIRE, HOTE");
         }
 
         User user = new User();
@@ -50,7 +53,7 @@ public class AuthService {
         );
 
         User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         String token = jwtUtils.generateToken(user.getEmail());
         return new AuthResponse(token, toDTO(user));

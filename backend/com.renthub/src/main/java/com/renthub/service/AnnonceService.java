@@ -7,6 +7,7 @@ import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
 import com.renthub.repository.AvisRepository;
 import com.renthub.repository.UserRepository;
+import com.renthub.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class AnnonceService {
     @Transactional(readOnly = true)
     public AnnonceDTO getAnnonceById(Integer id) {
         Annonce annonce = annonceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Annonce non trouvée avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Annonce non trouvée avec l'ID : " + id));
         return toDTO(annonce);
     }
 
@@ -47,7 +48,7 @@ public class AnnonceService {
     @Transactional(readOnly = true)
     public List<AnnonceDTO> getAnnoncesByHostEmail(String email) {
         User host = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Hôte non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Hôte non trouvé"));
         return annonceRepository.findByUserId(host.getId()).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -63,7 +64,7 @@ public class AnnonceService {
     @Transactional
     public AnnonceDTO createAnnonce(AnnonceRequest request, String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
-                .orElseThrow(() -> new RuntimeException("Hôte non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Hôte non trouvé"));
 
         Annonce annonce = Annonce.builder()
                 .titre(request.getTitre())
@@ -82,10 +83,10 @@ public class AnnonceService {
     @Transactional
     public AnnonceDTO updateAnnonce(Integer id, AnnonceRequest request, String userEmail) {
         Annonce annonce = annonceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Annonce non trouvée avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Annonce non trouvée avec l'ID : " + id));
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         if (!user.getRole().equals("ADMIN") && !annonce.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Non autorisé à modifier cette annonce");
@@ -104,10 +105,10 @@ public class AnnonceService {
     @Transactional
     public void deleteAnnonce(Integer id, String userEmail) {
         Annonce annonce = annonceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Annonce non trouvée avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Annonce non trouvée avec l'ID : " + id));
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         if (!user.getRole().equals("ADMIN") && !annonce.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Non autorisé à supprimer cette annonce");

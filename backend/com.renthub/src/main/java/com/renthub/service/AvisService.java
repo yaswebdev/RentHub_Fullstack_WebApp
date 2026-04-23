@@ -8,6 +8,9 @@ import com.renthub.entity.User;
 import com.renthub.repository.AvisRepository;
 import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
+import com.renthub.exception.BusinessRuleException;
+import com.renthub.exception.DuplicateResourceException;
+import com.renthub.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -34,24 +37,25 @@ public class AvisService {
     @Transactional
     public AvisDTO createAvis(CreateAvisRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         Reservation reservation = reservationRepository.findById(request.getReservationId())
-                .orElseThrow(() -> new RuntimeException("Réservation non trouvée avec l'ID : " + request.getReservationId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation non trouvée avec l'ID : " + request.getReservationId()));
 
         // Only the tenant who made the booking can leave a review
         if (!reservation.getLocataire().getId().equals(user.getId())) {
             throw new AccessDeniedException("Seul le locataire de cette réservation peut laisser un avis");
         }
 
-        // Reservation must be confirmed/completed
-        if (!"CONFIRMEE".equals(reservation.getStatut())) {
-            throw new RuntimeException("Vous ne pouvez laisser un avis que pour une réservation confirmée");
+        // Reservation must be confirmed or completed
+        String statut = reservation.getStatut();
+        if (!"CONFIRMEE".equals(statut) && !"TERMINEE".equals(statut)) {
+            throw new BusinessRuleException("Vous ne pouvez laisser un avis que pour une réservation confirmée ou terminée");
         }
 
         // One review per reservation
         if (avisRepository.findByReservationId(reservation.getId()).isPresent()) {
-            throw new RuntimeException("Un avis a déjà été laissé pour cette réservation");
+            throw new DuplicateResourceException("Un avis a déjà été laissé pour cette réservation");
         }
 
         Avis avis = Avis.builder()
@@ -79,7 +83,7 @@ public class AvisService {
     @Transactional(readOnly = true)
     public AvisDTO getAvisById(Integer id) {
         Avis avis = avisRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Avis non trouvé avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Avis non trouvé avec l'ID : " + id));
         return toDTO(avis);
     }
 
@@ -106,10 +110,10 @@ public class AvisService {
     @Transactional
     public void deleteAvis(Integer id, String userEmail) {
         Avis avis = avisRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Avis non trouvé avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Avis non trouvé avec l'ID : " + id));
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         boolean isAuthor = avis.getReservation().getLocataire().getId().equals(user.getId());
         boolean isAdmin = "ADMIN".equals(user.getRole());

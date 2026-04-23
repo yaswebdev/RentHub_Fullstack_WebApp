@@ -9,6 +9,8 @@ import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
 import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
+import com.renthub.exception.BusinessRuleException;
+import com.renthub.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,7 @@ public class ReservationService {
     private final UserRepository userRepository;
 
     private static final Set<String> VALID_STATUSES = Set.of(
-            "EN_ATTENTE", "CONFIRMEE", "REFUSEE", "ANNULEE"
+            "EN_ATTENTE", "CONFIRMEE", "REFUSEE", "PAYEE", "ANNULEE", "TERMINEE"
     );
 
     @Transactional(readOnly = true)
@@ -51,7 +53,7 @@ public class ReservationService {
     @Transactional(readOnly = true)
     public ReservationDTO getReservationById(Integer id, String userEmail) {
         Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Réservation non trouvée avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation non trouvée avec l'ID : " + id));
 
         User user = findUserByEmail(userEmail);
 
@@ -69,17 +71,17 @@ public class ReservationService {
     @Transactional
     public ReservationDTO createReservation(CreateReservationRequest request, String locataireEmail) {
         if (!request.getDateDebut().isBefore(request.getDateFin())) {
-            throw new RuntimeException("La date de début doit être avant la date de fin.");
+            throw new BusinessRuleException("La date de début doit être avant la date de fin.");
         }
 
         User locataire = findUserByEmail(locataireEmail);
 
         // Acquire a write lock on the listing row to serialize competing reservation attempts.
         Annonce annonce = annonceRepository.findByIdForUpdate(request.getAnnonceId())
-                .orElseThrow(() -> new RuntimeException("Annonce non trouvée avec l'ID : " + request.getAnnonceId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Annonce non trouvée avec l'ID : " + request.getAnnonceId()));
 
         if (!annonce.isDisponibilite()) {
-            throw new RuntimeException("Cette annonce n'est pas disponible.");
+            throw new BusinessRuleException("Cette annonce n'est pas disponible.");
         }
 
         boolean hasOverlap = reservationRepository.existsOverlappingActiveReservation(
@@ -88,12 +90,12 @@ public class ReservationService {
                 request.getDateFin()
         );
         if (hasOverlap) {
-            throw new RuntimeException("Ces dates ne sont plus disponibles pour cette annonce.");
+            throw new BusinessRuleException("Ces dates ne sont plus disponibles pour cette annonce.");
         }
 
         // Prevent host from booking own listing
         if (annonce.getUser().getId().equals(locataire.getId())) {
-            throw new RuntimeException("Vous ne pouvez pas réserver votre propre annonce.");
+            throw new BusinessRuleException("Vous ne pouvez pas réserver votre propre annonce.");
         }
 
         long nbrNuits = ChronoUnit.DAYS.between(request.getDateDebut(), request.getDateFin());
@@ -115,7 +117,7 @@ public class ReservationService {
     @Transactional
     public ReservationDTO updateReservationStatus(Integer id, UpdateReservationStatusRequest request, String userEmail) {
         Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Réservation non trouvée avec l'ID : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation non trouvée avec l'ID : " + id));
 
         User user = findUserByEmail(userEmail);
 
@@ -131,12 +133,12 @@ public class ReservationService {
 
         // Validate status is in allowed set
         if (!VALID_STATUSES.contains(newStatus)) {
-            throw new RuntimeException("Statut invalide : '" + newStatus + "'. Valeurs acceptées : " + VALID_STATUSES);
+            throw new BusinessRuleException("Statut invalide : '" + newStatus + "'. Valeurs acceptées : " + VALID_STATUSES);
         }
 
         // Tenants can only cancel
         if (isLocataire && !isAdmin && !newStatus.equals("ANNULEE")) {
-            throw new RuntimeException("Un locataire ne peut qu'annuler une réservation");
+            throw new BusinessRuleException("Un locataire ne peut qu'annuler une réservation");
         }
 
         reservation.setStatut(newStatus);
@@ -145,7 +147,7 @@ public class ReservationService {
 
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
     }
 
     private ReservationDTO toDTO(Reservation reservation) {
