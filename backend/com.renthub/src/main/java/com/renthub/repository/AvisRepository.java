@@ -22,4 +22,12 @@ public interface AvisRepository extends JpaRepository<Avis, Integer> {
     /** Count of reviews for an annonce */
     @Query("SELECT COUNT(a) FROM Avis a WHERE a.reservation.annonce.id = :annonceId")
     Long countByAnnonceId(Integer annonceId);
+
+    /**
+     * Batch query: returns [annonceId, avgRating, reviewCount] for ALL annonces in one SQL hit.
+     * Eliminates N+1 when loading listing pages.
+     */
+    @Query("SELECT a.reservation.annonce.id, AVG(a.note), COUNT(a) " +
+           "FROM Avis a GROUP BY a.reservation.annonce.id")
+    List<Object[]> findAllRatingStats();
 }

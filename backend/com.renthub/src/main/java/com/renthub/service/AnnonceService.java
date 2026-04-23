@@ -13,7 +13,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,8 +28,10 @@ public class AnnonceService {
 
     @Transactional(readOnly = true)
     public List<AnnonceDTO> getAllAnnonces() {
+        // Pre-load ALL rating stats in 1 query instead of 2N queries
+        Map<Integer, double[]> ratingMap = buildRatingMap();
         return annonceRepository.findAllWithDetails().stream()
-                .map(this::toDTO)
+                .map(a -> toDTO(a, ratingMap))
                 .collect(Collectors.toList());
     }
 
@@ -117,7 +121,33 @@ public class AnnonceService {
         annonceRepository.delete(annonce);
     }
 
+    /**
+     * Convert with pre-computed rating stats (used by batch list endpoints — no N+1).
+     */
+    private AnnonceDTO toDTO(Annonce annonce, Map<Integer, double[]> ratingMap) {
+        AnnonceDTO dto = buildBaseDTO(annonce);
+
+        double[] stats = ratingMap.getOrDefault(annonce.getId(), new double[]{0.0, 0});
+        dto.setAverageRating(Math.round(stats[0] * 10.0) / 10.0);
+        dto.setReviewCount((long) stats[1]);
+
+        return dto;
+    }
+
+    /**
+     * Convert with per-annonce rating lookup (used by single-item endpoints).
+     */
     private AnnonceDTO toDTO(Annonce annonce) {
+        AnnonceDTO dto = buildBaseDTO(annonce);
+
+        Double avg = avisRepository.findAverageNoteByAnnonceId(annonce.getId());
+        dto.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+        dto.setReviewCount(avisRepository.countByAnnonceId(annonce.getId()));
+
+        return dto;
+    }
+
+    private AnnonceDTO buildBaseDTO(Annonce annonce) {
         AnnonceDTO dto = new AnnonceDTO();
         dto.setId(annonce.getId());
         dto.setTitre(annonce.getTitre());
@@ -140,11 +170,22 @@ public class AnnonceService {
                     .collect(Collectors.toList()));
         }
 
-        // Rating stats
-        Double avg = avisRepository.findAverageNoteByAnnonceId(annonce.getId());
-        dto.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
-        dto.setReviewCount(avisRepository.countByAnnonceId(annonce.getId()));
-
         return dto;
     }
+
+    /**
+     * Load all rating stats in a single SQL query.
+     * Returns Map<annonceId, [avgRating, reviewCount]>.
+     */
+    private Map<Integer, double[]> buildRatingMap() {
+        Map<Integer, double[]> map = new HashMap<>();
+        for (Object[] row : avisRepository.findAllRatingStats()) {
+            Integer annonceId = (Integer) row[0];
+            Double avg = (Double) row[1];
+            Long count = (Long) row[2];
+            map.put(annonceId, new double[]{avg != null ? avg : 0.0, count != null ? count : 0});
+        }
+        return map;
+    }
 }
+
