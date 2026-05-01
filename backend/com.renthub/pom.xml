@@ -108,6 +108,12 @@
 			<artifactId>stripe-java</artifactId>
 			<version>26.3.0</version>
 		</dependency>
+
+		<!-- Flyway migrations -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

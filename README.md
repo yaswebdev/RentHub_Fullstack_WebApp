@@ -45,3 +45,11 @@ To stop and remove all data (volumes):
 ```bash
 docker-compose down -v
 ```
+
+---
+
+## Database Migrations (Flyway)
+
+The backend uses Flyway migrations located in `backend/com.renthub/src/main/resources/db/migration`.
+On startup, Flyway will apply any new migrations automatically. For existing databases,
+it will baseline at version 1 to avoid reapplying the initial schema.
