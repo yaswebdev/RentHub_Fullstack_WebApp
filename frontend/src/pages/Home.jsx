@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   Search, MapPin, Star, ChevronRight, Shield, Heart, Sparkles, ArrowRight
 } from 'lucide-react';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useProprietes } from '../hooks/useProprietes';
 import { useFavorites } from '../context/FavoritesContext';
 import { cn } from '../lib/utils';
 import { CardSkeleton } from '../components/Skeleton';
+import { DestinationAutocomplete } from '../components/DestinationAutocomplete';
 
 const VILLES = ['Marrakech', 'Casablanca', 'Agadir', 'Tanger', 'Fès', 'Essaouira'];
 
@@ -24,104 +26,36 @@ const CATEGORIES = [
     id: 'riad',
     label: 'Riads',
     desc: 'Architecture andalouse',
-    gradient: 'from-amber-400 to-orange-500',
-    bg: 'bg-amber-50 group-hover:bg-amber-100',
-    border: 'border-amber-200 group-hover:border-amber-400',
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <rect x="4" y="22" width="32" height="14" rx="2" fill="white" fillOpacity="0.3"/>
-        <rect x="8" y="22" width="4" height="14" fill="white" fillOpacity="0.5"/>
-        <rect x="28" y="22" width="4" height="14" fill="white" fillOpacity="0.5"/>
-        <path d="M16 36V28a4 4 0 018 0v8" fill="white" fillOpacity="0.7"/>
-        <path d="M6 22C6 16 10 10 20 8C30 10 34 16 34 22" fill="white" fillOpacity="0.4"/>
-        <ellipse cx="20" cy="8" rx="3" ry="4" fill="white" fillOpacity="0.9"/>
-        <circle cx="10" cy="22" r="1.5" fill="white"/>
-        <circle cx="20" cy="20" r="1.5" fill="white"/>
-        <circle cx="30" cy="22" r="1.5" fill="white"/>
-        <path d="M6 22h28" stroke="white" strokeWidth="1.5" strokeOpacity="0.6"/>
-      </svg>
-    ),
+    image:
+      'https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&q=80&w=800',
   },
   {
     id: 'villa',
     label: 'Villas',
     desc: 'Piscine & jardin',
-    gradient: 'from-emerald-400 to-teal-500',
-    bg: 'bg-emerald-50 group-hover:bg-emerald-100',
-    border: 'border-emerald-200 group-hover:border-emerald-400',
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <rect x="6" y="20" width="28" height="16" rx="2" fill="white" fillOpacity="0.35"/>
-        <path d="M4 22L20 10L36 22" fill="white" fillOpacity="0.6"/>
-        <rect x="16" y="26" width="8" height="10" rx="1" fill="white" fillOpacity="0.7"/>
-        <rect x="8" y="24" width="6" height="5" rx="1" fill="white" fillOpacity="0.5"/>
-        <rect x="26" y="24" width="6" height="5" rx="1" fill="white" fillOpacity="0.5"/>
-        <ellipse cx="30" cy="34" rx="5" ry="2.5" fill="white" fillOpacity="0.4"/>
-        <path d="M25 34 Q27 31 30 31 Q33 31 35 34" stroke="white" strokeWidth="1.5" strokeOpacity="0.6" fill="none"/>
-      </svg>
-    ),
+    image:
+      'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&q=80&w=800',
   },
   {
     id: 'appartement',
     label: 'Appartements',
     desc: 'Vie citadine',
-    gradient: 'from-blue-400 to-indigo-500',
-    bg: 'bg-blue-50 group-hover:bg-blue-100',
-    border: 'border-blue-200 group-hover:border-blue-400',
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <rect x="8" y="6" width="24" height="30" rx="2" fill="white" fillOpacity="0.35"/>
-        <rect x="12" y="10" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="20" y="10" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="28" y="10" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.5"/>
-        <rect x="12" y="18" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="20" y="18" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.5"/>
-        <rect x="28" y="18" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="12" y="26" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.5"/>
-        <rect x="20" y="26" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="28" y="26" width="4" height="4" rx="0.5" fill="white" fillOpacity="0.8"/>
-        <rect x="6" y="4" width="4" height="32" rx="1" fill="white" fillOpacity="0.2"/>
-      </svg>
-    ),
+    image:
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=800',
   },
   {
     id: 'studio',
     label: 'Studios',
     desc: 'Cosy & moderne',
-    gradient: 'from-violet-400 to-purple-500',
-    bg: 'bg-violet-50 group-hover:bg-violet-100',
-    border: 'border-violet-200 group-hover:border-violet-400',
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <rect x="4" y="18" width="32" height="14" rx="3" fill="white" fillOpacity="0.4"/>
-        <rect x="4" y="28" width="32" height="4" rx="1" fill="white" fillOpacity="0.3"/>
-        <rect x="8" y="14" width="24" height="4" rx="1" fill="white" fillOpacity="0.5"/>
-        <rect x="14" y="32" width="4" height="4" rx="1" fill="white" fillOpacity="0.6"/>
-        <rect x="22" y="32" width="4" height="4" rx="1" fill="white" fillOpacity="0.6"/>
-        <circle cx="28" cy="23" r="2.5" fill="white" fillOpacity="0.7"/>
-        <path d="M8 23 Q11 20 14 23" stroke="white" strokeWidth="1.5" strokeOpacity="0.7" fill="none"/>
-        <path d="M18 21h4" stroke="white" strokeWidth="1.5" strokeOpacity="0.5" strokeLinecap="round"/>
-      </svg>
-    ),
+    image:
+      'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=800',
   },
   {
     id: 'dar',
     label: 'Dars',
     desc: 'Maison de famille',
-    gradient: 'from-rose-400 to-pink-500',
-    bg: 'bg-rose-50 group-hover:bg-rose-100',
-    border: 'border-rose-200 group-hover:border-rose-400',
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <path d="M4 24L20 10L36 24" fill="white" fillOpacity="0.5"/>
-        <rect x="8" y="24" width="24" height="12" rx="1.5" fill="white" fillOpacity="0.35"/>
-        <rect x="17" y="28" width="6" height="8" rx="1" fill="white" fillOpacity="0.75"/>
-        <rect x="10" y="26" width="5" height="5" rx="1" fill="white" fillOpacity="0.55"/>
-        <rect x="25" y="26" width="5" height="5" rx="1" fill="white" fillOpacity="0.55"/>
-        <path d="M18 10V6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.7"/>
-        <circle cx="20" cy="10" r="1.5" fill="white" fillOpacity="0.9"/>
-      </svg>
-    ),
+    image:
+      'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&q=80&w=800',
   },
 ];
 
@@ -131,81 +65,220 @@ export const Home = () => {
   const navigate = useNavigate();
   const { proprietes, chargement } = useProprietes({}, 6);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const [activePanel, setActivePanel] = useState(null);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [guests, setGuests] = useState({ adults: 0, children: 0, babies: 0, pets: 0 });
+  const panelRef = useRef(null);
+  const triggerRef = useRef(null);
 
   const handleSearch = (e) => {
     e.preventDefault();
     navigate(`/search?q=${encodeURIComponent(recherche)}`);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!panelRef.current || !triggerRef.current) return;
+      if (!panelRef.current.contains(event.target) && !triggerRef.current.contains(event.target)) {
+        setActivePanel(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const guestsLabel = useMemo(() => {
+    const total = guests.adults + guests.children + guests.babies + guests.pets;
+    if (total === 0) return 'Ajouter des voyageurs';
+    const parts = [];
+    if (guests.adults) parts.push(`${guests.adults} adulte${guests.adults > 1 ? 's' : ''}`);
+    if (guests.children) parts.push(`${guests.children} enfant${guests.children > 1 ? 's' : ''}`);
+    if (guests.babies) parts.push(`${guests.babies} bébé${guests.babies > 1 ? 's' : ''}`);
+    if (guests.pets) parts.push(`${guests.pets} animal${guests.pets > 1 ? 's' : ''}`);
+    return parts.join(', ');
+  }, [guests]);
+
+  const setGuestValue = (key, delta) => {
+    setGuests((prev) => {
+      const next = Math.max(0, (prev[key] || 0) + delta);
+      return { ...prev, [key]: next };
+    });
+  };
+
+  const datesLabel = useMemo(() => {
+    if (!startDate || !endDate) return 'Quand ?';
+    const format = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return `${format(startDate)} - ${format(endDate)}`;
+  }, [startDate, endDate]);
+
   return (
     <div className="min-h-screen">
       {/* ── Héro ──────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
-        {/* Fond */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&q=80&w=1920"
-            alt="Médina marocaine"
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/50 to-slate-900/80" />
-        </div>
-
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-sm font-medium mb-8">
-              <Sparkles className="h-4 w-4 text-yellow-400" />
-              N°1 de la location de vacances au Maroc
-            </div>
-
-            <h1 className="text-5xl md:text-7xl font-display font-bold text-white mb-6 leading-tight">
-              Votre séjour parfait<br />
-              <span className="bg-gradient-to-r from-primary-400 to-violet-400 bg-clip-text text-transparent">
-                au Maroc
-              </span>
-            </h1>
-
-            <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Riads authentiques, villas avec piscine, studios modernes — découvrez des hébergements d'exception dans les plus belles villes du Maroc.
-            </p>
-
-            {/* Barre de recherche héro */}
-            <form
-              onSubmit={handleSearch}
-              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-xl rounded-2xl p-2 max-w-2xl mx-auto border border-white/20 shadow-2xl"
+      <section className="pt-28 pb-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <motion.div
+              className="lg:col-span-7"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
             >
-              <div className="flex items-center flex-1 bg-white rounded-xl px-4 py-3">
-                <MapPin className="h-5 w-5 text-primary-500 shrink-0 mr-3" />
-                <input
-                  type="text"
-                  placeholder="Où souhaitez-vous séjourner ?"
-                  className="flex-1 bg-transparent border-none focus:outline-none text-slate-900 text-sm placeholder:text-slate-400"
-                  value={recherche}
-                  onChange={(e) => setRecherche(e.target.value)}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-semibold mb-5">
+                <Sparkles className="h-4 w-4 text-primary-500" />
+                Sélections premium au Maroc
+              </div>
+              <h1 className="text-4xl md:text-6xl font-display font-bold text-slate-900 leading-tight">
+                Trouvez un lieu
+                <span className="block text-primary-600">qui vous ressemble</span>
+              </h1>
+              <p className="mt-5 text-lg text-slate-600 max-w-xl">
+                Riads lumineux, villas avec piscine, studios design. Réservez en quelques clics, au cœur des plus belles villes.
+              </p>
+
+              <div className="relative">
+                <form
+                  onSubmit={handleSearch}
+                  className="mt-8 flex flex-col md:flex-row items-stretch rounded-full bg-white shadow-lg border border-slate-200"
+                  ref={triggerRef}
+                >
+                  <DestinationAutocomplete
+                    value={recherche}
+                    onChange={setRecherche}
+                    onSelect={(city) => setRecherche(city)}
+                    className="md:flex-[2]"
+                  />
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex-1 px-6 py-4 text-left md:flex-[1.2] md:border-l md:border-slate-200',
+                      activePanel === 'dates' && 'bg-slate-50'
+                    )}
+                    onClick={() => setActivePanel(activePanel === 'dates' ? null : 'dates')}
+                  >
+                    <p className="text-[11px] font-bold text-slate-700">Dates</p>
+                    <p className={cn('text-sm', startDate && endDate ? 'text-slate-800 font-semibold' : 'text-slate-500')}>
+                      {datesLabel}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex-1 px-6 py-4 text-left md:flex-[1] md:border-l md:border-slate-200',
+                      activePanel === 'guests' && 'bg-slate-50'
+                    )}
+                    onClick={() => setActivePanel(activePanel === 'guests' ? null : 'guests')}
+                  >
+                    <p className="text-[11px] font-bold text-slate-700">Voyageurs</p>
+                    <p className="text-sm text-slate-500 truncate">{guestsLabel}</p>
+                  </button>
+                  <div className="p-2 flex items-center justify-center">
+                    <Button type="submit" size="lg" className="rounded-full px-6">
+                      <Search className="h-5 w-5 mr-2" /> Rechercher
+                    </Button>
+                  </div>
+                </form>
+
+                {activePanel === 'dates' && (
+                  <motion.div
+                    ref={panelRef}
+                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="absolute left-0 right-0 mt-4 bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 z-20"
+                  >
+                    <DateRangePicker
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(dates) => {
+                        const [start, end] = dates;
+                        setStartDate(start);
+                        setEndDate(end);
+                      }}
+                    />
+                  </motion.div>
+                )}
+
+                {activePanel === 'guests' && (
+                  <div ref={panelRef} className="absolute right-0 mt-4 w-full md:w-[380px] bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 z-20">
+                    {[
+                      { key: 'adults', label: 'Adultes', desc: '13 ans et plus' },
+                      { key: 'children', label: 'Enfants', desc: 'De 2 à 12 ans' },
+                      { key: 'babies', label: 'Bébés', desc: '- de 2 ans' },
+                      { key: 'pets', label: 'Animaux domestiques', desc: "Vous voyagez avec un animal d'assistance ?" },
+                    ].map((row, idx) => (
+                      <div key={row.key} className={cn('flex items-center justify-between py-4', idx > 0 && 'border-t border-slate-100')}>
+                        <div>
+                          <p className="font-semibold text-slate-900">{row.label}</p>
+                          <p className="text-sm text-slate-500">{row.desc}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            className="w-8 h-8 rounded-full border border-slate-200 text-slate-500"
+                            onClick={() => setGuestValue(row.key, -1)}
+                          >
+                            -
+                          </button>
+                          <span className="w-4 text-center font-semibold text-slate-700">{guests[row.key]}</span>
+                          <button
+                            type="button"
+                            className="w-8 h-8 rounded-full border border-slate-200 text-slate-500"
+                            onClick={() => setGuestValue(row.key, 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-5">
+                {VILLES.map((ville) => (
+                  <button
+                    key={ville}
+                    onClick={() => navigate(`/search?q=${ville}`)}
+                    className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-full hover:border-slate-400"
+                  >
+                    {ville}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="lg:col-span-5 grid grid-cols-2 gap-4"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <div className="rounded-3xl overflow-hidden shadow-lg">
+                <img
+                  src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=900"
+                  alt="Riad"
+                  className="h-full w-full object-cover"
                 />
               </div>
-              <Button type="submit" size="lg" className="rounded-xl shrink-0 px-8">
-                <Search className="h-5 w-5 mr-2" /> Rechercher
-              </Button>
-            </form>
-
-            {/* Villes populaires */}
-            <div className="flex flex-wrap justify-center gap-2 mt-6">
-              {VILLES.map((ville) => (
-                <button
-                  key={ville}
-                  onClick={() => navigate(`/search?q=${ville}`)}
-                  className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 transition-all duration-200 hover:scale-105"
-                >
-                  {ville}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+              <div className="grid gap-4">
+                <div className="rounded-3xl overflow-hidden shadow-lg">
+                  <img
+                    src="https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&q=80&w=900"
+                    alt="Appartement"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="rounded-3xl overflow-hidden shadow-lg">
+                  <img
+                    src="https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&q=80&w=900"
+                    alt="Villa"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -218,34 +291,31 @@ export const Home = () => {
             </h2>
             <p className="text-slate-500">Filtrez par type et trouvez le logement de vos rêves</p>
           </div>
-          <div className="flex flex-wrap justify-center gap-5">
+          <div className="flex flex-wrap justify-center gap-6">
             {CATEGORIES.map((cat, i) => (
               <motion.button
                 key={cat.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                whileHover={{ y: -4, scale: 1.03 }}
+                whileHover={{ y: -6, scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => { setCategorieActive(cat.id === categorieActive ? null : cat.id); navigate(`/search?type=${cat.id}`); }}
                 className={cn(
-                  'group flex flex-col items-center gap-4 px-6 py-6 rounded-3xl border-2 transition-all duration-300 shadow-sm hover:shadow-xl min-w-[130px] w-36 text-center',
-                  categorieActive === cat.id
-                    ? `${cat.border} ${cat.bg} shadow-md`
-                    : `border-slate-200 bg-white hover:${cat.bg} hover:${cat.border}`
+                  'group flex flex-col items-center gap-4 px-6 py-7 rounded-3xl border transition-all duration-300 shadow-sm hover:shadow-xl min-w-[150px] w-40 text-center bg-white border-slate-200'
                 )}
               >
-                {/* Icon bubble */}
-                <div className={cn(
-                  'w-16 h-16 rounded-2xl flex items-center justify-center p-3 transition-all duration-300 bg-gradient-to-br shadow-lg',
-                  cat.gradient,
-                  categorieActive === cat.id ? 'shadow-xl scale-110' : 'group-hover:scale-110 group-hover:shadow-xl'
-                )}>
-                  {cat.icon}
+                <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm">
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800 mb-0.5">{cat.label}</p>
-                  <p className="text-[10px] text-slate-400 font-medium leading-tight">{cat.desc}</p>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">{cat.label}</p>
+                  <p className="text-[11px] text-slate-500 font-medium leading-tight">{cat.desc}</p>
                 </div>
               </motion.button>
             ))}
@@ -275,73 +345,71 @@ export const Home = () => {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {proprietes.slice(0, 6).map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <Link to={`/property/${p.id}`}>
-                    <Card hover className="group overflow-hidden cursor-pointer">
-                      <div className="relative h-56 overflow-hidden rounded-t-3xl">
-                        <img
-                          src={p.image || p.images?.[0]}
-                          alt={p.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-slate-800">
-                          {p.type}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            toggleFavorite(p.id);
-                          }}
-                          className="absolute top-3 right-3 p-2 rounded-full bg-white/50 backdrop-blur-md hover:bg-white transition-all duration-300 z-10"
-                        >
-                          <Heart 
-                            className={cn(
-                              "h-5 w-5 transition-colors", 
-                              isFavorite(p.id) ? "fill-red-500 text-red-500" : "text-slate-700"
-                            )} 
-                          />
-                        </button>
-                        {p.isSuperhost && (
-                          <div className="absolute bottom-3 left-3 bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                            <Shield className="h-3 w-3" /> Super Hôte
+            <div className="space-y-10">
+              {[{ title: 'Logements populaires • Marrakech', items: proprietes.slice(0, 8) },
+                { title: 'Hébergements coup de coeur', items: proprietes.slice(2, 10) }].map((section, idx) => (
+                <div key={section.title}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-slate-900">{section.title}</h3>
+                    <Link to="/search" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+                      Voir tout <ChevronRight className="h-4 w-4 inline-block" />
+                    </Link>
+                  </div>
+                  <div className="flex gap-5 overflow-x-auto pb-3 snap-x">
+                    {section.items.map((p) => (
+                      <Link key={p.id} to={`/property/${p.id}`} className="min-w-[240px] max-w-[240px] snap-start">
+                        <Card hover className="group overflow-hidden cursor-pointer">
+                          <div className="relative h-44 overflow-hidden rounded-t-3xl">
+                            <img
+                              src={p.image || p.images?.[0]}
+                              alt={p.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              referrerPolicy="no-referrer"
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleFavorite(p.id);
+                              }}
+                              className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white transition-all duration-300 z-10"
+                            >
+                              <Heart
+                                className={cn(
+                                  "h-4 w-4 transition-colors",
+                                  isFavorite(p.id) ? "fill-red-500 text-red-500" : "text-slate-700"
+                                )}
+                              />
+                            </button>
                           </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 flex-1">
-                            {p.title}
-                          </h3>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
-                            <span className="text-sm font-bold">{p.rating || 'Nouveau'}</span>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 flex-1">
+                                {p.title}
+                              </h3>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                                <span className="text-sm font-bold">{p.rating || 'Nouveau'}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-500 flex items-center gap-1 mb-3">
+                              <MapPin className="h-3 w-3" />
+                              {typeof p.location === 'string' ? p.location : p.location?.city}, Maroc
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-bold text-slate-900">{p.pricePerNight || p.prixParNuit} DH</span>
+                                <span className="text-xs text-slate-500"> / nuit</span>
+                              </div>
+                              <Button size="sm" variant="outline" className="text-xs">
+                                Voir <ArrowRight className="h-3 w-3 ml-1" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                        <p className="text-xs text-slate-500 flex items-center gap-1 mb-3">
-                          <MapPin className="h-3 w-3" />
-                          {typeof p.location === 'string' ? p.location : p.location?.city}, Maroc
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-slate-900">{p.pricePerNight || p.prixParNuit} DH</span>
-                            <span className="text-xs text-slate-500"> / nuit</span>
-                          </div>
-                          <Button size="sm" variant="outline" className="text-xs">
-                            Voir <ArrowRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </motion.div>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -357,7 +425,7 @@ export const Home = () => {
       </section>
 
       {/* ── Avantages ─────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-primary-50 via-white to-violet-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 transition-colors border-y border-slate-100 dark:border-slate-800">
+      <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-amber-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 transition-colors border-y border-slate-100 dark:border-slate-800">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 dark:text-white mb-3">
@@ -377,7 +445,7 @@ export const Home = () => {
                 transition={{ delay: i * 0.15 }}
                 className="text-center p-8 bg-white rounded-3xl shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-violet-100 text-primary-600 mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 mb-6">
                   {a.icone}
                 </div>
                 <h3 className="font-bold text-slate-900 text-lg mb-2">{a.titre}</h3>
@@ -389,7 +457,7 @@ export const Home = () => {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-primary-600 to-violet-600 relative overflow-hidden">
+      <section className="py-20 bg-gradient-to-br from-primary-600 to-amber-500 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl" />

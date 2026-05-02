@@ -45,14 +45,21 @@ export const ENDPOINTS = {
   RESERVATION:      (id) => `/api/reservations/${id}`,
   MES_RESERVATIONS:      '/api/reservations/me',
   CREER_RESERVATION:     '/api/reservations',
-  ANNULER_RESERVATION:(id)=> `/api/reservations/${id}/status`,
+  ANNULER_RESERVATION:(id)=> `/api/reservations/${id}/cancel`,
+  REFUND_STATUS:    (id) => `/api/reservations/${id}/refund-status`,
 
   // ── Messagerie ────────────────────────────────────────────────
-  CHATS:                 '/api/chats',
-  CHAT:             (id) => `/api/chats/${id}`,
-  MESSAGES:    (chatId) => `/api/chats/${chatId}/messages`,
-  ENVOYER_MESSAGE:(chatId)=> `/api/chats/${chatId}/messages`,
-  CREER_CHAT:            '/api/chats',
+  CONVERSATIONS:         '/api/messages/conversations',
+  MESSAGES: (reservationId) => `/api/messages/reservation/${reservationId}`,
+  ENVOYER_MESSAGE:       '/api/messages',
+
+  // ── Photos ───────────────────────────────────────────────
+  PHOTOS_ANNONCE: (annonceId) => `/api/photos/annonce/${annonceId}`,
+  PHOTO:          (photoId) => `/api/photos/${photoId}`,
+
+  // ── Paiements ────────────────────────────────────────────
+  PAIEMENT_CREATE_INTENT: '/api/paiements/create-intent',
+  PAIEMENT_CONFIRM:       '/api/paiements/confirm',
 
   // ── Avis ──────────────────────────────────────────────────────
   AVIS_PROPRIETE:   (id) => `/api/annonces/${id}/avis`,

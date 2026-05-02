@@ -10,6 +10,24 @@ import apiClient from './client';
 import { ENDPOINTS, API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
 
+const normalizeAnnonce = (dto) => ({
+  id: dto.id,
+  title: dto.titre,
+  description: dto.description,
+  pricePerNight: dto.prixNuit,
+  adresse: dto.adresse,
+  location: dto.adresse,
+  latitude: dto.latitude,
+  longitude: dto.longitude,
+  disponibilite: dto.disponibilite,
+  hostId: dto.userId,
+  hostName: dto.userName,
+  images: dto.photoUrls || [],
+  image: dto.photoUrls?.[0] || null,
+  rating: dto.averageRating,
+  reviewCount: dto.reviewCount,
+});
+
 /* ── Filtrage local marocain ─────────────────────────────────────── */
 const VILLES_MAROC = [
   'marrakech', 'casablanca', 'agadir', 'tanger', 'fès', 'fes',
@@ -30,7 +48,7 @@ const estMarocaine = (p) => {
 export async function fetchProprietes(filtres = {}) {
   if (API_BASE_URL) {
     const { data } = await apiClient.get(ENDPOINTS.PROPRIETES, { params: filtres });
-    return data;
+    return data.map(normalizeAnnonce);
   }
 
   // Mode dev : filtrage local
@@ -45,7 +63,7 @@ export async function fetchProprietes(filtres = {}) {
 export async function fetchProprieteParId(id) {
   if (API_BASE_URL) {
     const { data } = await apiClient.get(ENDPOINTS.PROPRIETE(id));
-    return data;
+    return normalizeAnnonce(data);
   }
 
   const propriete = PROPRIETES_MOCK.find((p) => p.id === id);
@@ -61,7 +79,7 @@ export async function fetchProprieteParId(id) {
 export async function creerPropriete(donnees) {
   if (API_BASE_URL) {
     const { data } = await apiClient.post(ENDPOINTS.CREER_PROPRIETE, donnees);
-    return data;
+    return normalizeAnnonce(data);
   }
 
   // Mode dev : simulation
@@ -75,7 +93,7 @@ export async function creerPropriete(donnees) {
 export async function modifierPropriete(id, donnees) {
   if (API_BASE_URL) {
     const { data } = await apiClient.put(ENDPOINTS.MODIFIER_PROPRIETE(id), donnees);
-    return data;
+    return normalizeAnnonce(data);
   }
 
   return { id, ...donnees };

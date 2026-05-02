@@ -18,6 +18,9 @@ import { useToast } from '../context/ToastContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { usePropriete } from '../hooks/useProprietes';
 import { creerChat } from '../api/chatAPI';
+import { fetchMesReservations } from '../api/reservationsAPI';
+import { fetchAvisByAnnonce } from '../api/avisAPI';
+import { API_BASE_URL } from '../constants/api';
 import { getDocs, query, where, collection, db } from '../firebase';
 
 /* Chargement paresseux de la carte (Leaflet est lourd) */
@@ -53,19 +56,38 @@ export const PropertyDetails = () => {
   const [nouvelleNote, setNouvelleNote] = useState(5);
   const [avisSoumis, setAvisSoumis] = useState(false);
 
-  // Synchroniser les avis locaux avec ceux de la propriété (pour la simulation)
+  // Synchroniser les avis locaux
   useEffect(() => {
+    if (!property?.id) return;
+    if (API_BASE_URL) {
+      fetchAvisByAnnonce(property.id)
+        .then((data) => setLocalReviews(data))
+        .catch(() => setLocalReviews([]));
+      return;
+    }
+
     if (property?.reviews) {
       setLocalReviews(property.reviews);
     }
-  }, [property?.reviews]);
+  }, [property?.id, property?.reviews]);
 
   const handleContacterHote = async () => {
     if (!user) { navigate('/login'); return; }
     if (!property?.hostId) return;
 
     try {
-      // Vérifier si une conversation existe déjà
+      if (API_BASE_URL) {
+        const reservations = await fetchMesReservations(user.id);
+        const match = reservations.find((r) => r.annonceId === property.id || r.propertyId === property.id);
+        if (match) {
+          navigate(`/chat/${match.id}`);
+          return;
+        }
+        toast("Vous devez avoir une réservation pour contacter l'hôte.", 'info');
+        return;
+      }
+
+      // Mode dev Firebase : vérifier si une conversation existe déjà
       const q = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
       const snapshot = await getDocs(q);
       let chatExistantId = null;
@@ -301,7 +323,12 @@ export const PropertyDetails = () => {
                 {localReviews.map((avis) => (
                   <div key={avis.id} className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <img src={avis.userPhoto} className="h-12 w-12 rounded-full object-cover" alt="" />
+                      <img
+                        src={avis.userPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(avis.userName || 'U')}&background=6366f1&color=fff`}
+                        className="h-12 w-12 rounded-full object-cover"
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
                       <div>
                         <p className="font-bold text-slate-900 dark:text-white">{avis.userName}</p>
                         <p className="text-xs text-slate-500">{avis.date}</p>

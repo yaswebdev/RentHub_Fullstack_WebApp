@@ -14,7 +14,7 @@ const DefilementHaut = () => {
 
 /** Mise en page principale : Barre de navigation + contenu + pied de page */
 export const Layout = () => (
-  <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-white to-slate-50">
+  <div className="min-h-screen flex flex-col bg-[radial-gradient(circle_at_top,_#fff6f4,_#fbf7f1_55%,_#f7f1e8)]">
     <DefilementHaut />
     <Navbar />
     <main className="flex-grow">

@@ -87,13 +87,12 @@ export function useReservations(utilisateurId) {
    * Annuler une réservation existante.
    * @param {string} id
    */
-  const annuler = useCallback(async (id) => {
-    await annulerReservation(id);
+  const annuler = useCallback(async (id, reason) => {
+    const updated = await annulerReservation(id, reason);
     setReservations((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, statut: 'annulé', status: 'cancelled' } : r
-      )
+      prev.map((r) => (r.id === id ? { ...r, ...updated } : r))
     );
+    return updated;
   }, []);
 
   return { reservations, chargement, erreur, creer, annuler };

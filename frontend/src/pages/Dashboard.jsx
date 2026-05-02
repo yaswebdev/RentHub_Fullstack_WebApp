@@ -28,13 +28,20 @@ const STATUT_CONFIG = {
   confirmé:   { label: 'Confirmée',   color: 'text-green-600 bg-green-50 border-green-200',   icone: CheckCircle },
   'en_attente':{ label: 'En attente', color: 'text-amber-600 bg-amber-50 border-amber-200',   icone: AlertCircle },
   annulé:     { label: 'Annulée',     color: 'text-red-600 bg-red-50 border-red-200',         icone: XCircle    },
+  EN_ATTENTE: { label: 'En attente',  color: 'text-amber-600 bg-amber-50 border-amber-200',   icone: AlertCircle },
+  CONFIRMEE:  { label: 'Confirmée',   color: 'text-green-600 bg-green-50 border-green-200',   icone: CheckCircle },
+  PAYEE:      { label: 'Payée',       color: 'text-blue-600 bg-blue-50 border-blue-200',      icone: CheckCircle },
+  ANNULEE:    { label: 'Annulée',     color: 'text-red-600 bg-red-50 border-red-200',         icone: XCircle    },
+  REFUSEE:    { label: 'Refusée',     color: 'text-slate-600 bg-slate-50 border-slate-200',   icone: XCircle    },
+  TERMINEE:   { label: 'Terminée',    color: 'text-slate-600 bg-slate-50 border-slate-200',   icone: CheckCircle },
 };
 
 export const Dashboard = () => {
   const { user, deconnecter } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { reservations, chargement, annuler } = useReservations(user?.uid);
+  const currentUserId = user?.id || user?.uid;
+  const { reservations, chargement, annuler } = useReservations(currentUserId);
   const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const { proprietes } = useProprietes();
   const [onglet, setOnglet] = useState('reservations');
@@ -79,8 +86,8 @@ export const Dashboard = () => {
 
   const stats = {
     total:      reservations.length,
-    confirmées: reservations.filter((r) => ['confirmed', 'confirmé'].includes(r.status || r.statut)).length,
-    enAttente:  reservations.filter((r) => ['pending', 'en_attente'].includes(r.status || r.statut)).length,
+    confirmées: reservations.filter((r) => ['confirmed', 'confirmé', 'CONFIRMEE', 'PAYEE'].includes(r.status || r.statut)).length,
+    enAttente:  reservations.filter((r) => ['pending', 'en_attente', 'EN_ATTENTE'].includes(r.status || r.statut)).length,
     depenses:   reservations.reduce((acc, r) => acc + (r.totalPrice || r.prixTotal || 0), 0),
   };
 
@@ -262,6 +269,13 @@ export const Dashboard = () => {
               reservations.map((r) => {
                 const statut = STATUT_CONFIG[r.status] || STATUT_CONFIG[r.statut] || STATUT_CONFIG.pending;
                 const Icone  = statut.icone;
+                const dateDebut = r.startDate || r.dateDebut;
+                const dateFin = r.endDate || r.dateFin;
+                const nights = dateDebut && dateFin
+                  ? Math.max(1, Math.ceil((new Date(dateFin) - new Date(dateDebut)) / (1000 * 60 * 60 * 24)))
+                  : (r.nights || r.nombreNuits || '—');
+                const canCancel = ['confirmed', 'confirmé', 'pending', 'en_attente', 'EN_ATTENTE', 'CONFIRMEE', 'PAYEE']
+                  .includes(r.status || r.statut);
                 return (
                   <Card key={r.id} className="overflow-hidden hover:shadow-md transition-shadow dark:bg-slate-900">
                     <CardContent className="p-0">
@@ -285,15 +299,15 @@ export const Dashboard = () => {
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-4">
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(r.startDate || r.dateDebut)}</span>
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {r.nights || r.nombreNuits || '—'} nuits</span>
+                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(dateDebut)}</span>
+                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {nights} nuits</span>
                             <span className="font-bold text-slate-900 dark:text-white">{(r.totalPrice || r.prixTotal || 0).toLocaleString('fr-MA')} DH</span>
                           </div>
                           <div className="flex gap-2">
-                            <Link to={`/property/${r.propertyId || r.proprieteId}`}>
+                            <Link to={`/property/${r.propertyId || r.proprieteId || r.annonceId}`}>
                               <Button size="sm" variant="outline">Voir le logement</Button>
                             </Link>
-                            {['confirmed', 'confirmé', 'pending', 'en_attente'].includes(r.status || r.statut) && (
+                            {canCancel && (
                               <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleAnnuler(r.id)}>
                                 Annuler
                               </Button>

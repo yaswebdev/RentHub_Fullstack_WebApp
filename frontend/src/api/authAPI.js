@@ -29,8 +29,8 @@ import {
  */
 export async function connexionEmailMotDePasse(email, motDePasse) {
   if (API_BASE_URL) {
-    const { data } = await apiClient.post(ENDPOINTS.AUTH_CONNEXION, { email, motDePasse });
-    return data; // { token, utilisateur }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH_CONNEXION, { email, password: motDePasse });
+    return { token: data.token, utilisateur: data.user };
   }
 
   // Mode dev : simulation simple (à remplacer par vrai backend)
@@ -44,13 +44,14 @@ export async function connexionEmailMotDePasse(email, motDePasse) {
  */
 export async function inscriptionUtilisateur(nom, email, motDePasse, role = 'voyageur') {
   if (API_BASE_URL) {
+    const normalizedRole = role === 'hote' ? 'HOTE' : 'LOCATAIRE';
     const { data } = await apiClient.post(ENDPOINTS.AUTH_INSCRIPTION, {
       nom,
       email,
-      motDePasse,
-      role,
+      password: motDePasse,
+      role: normalizedRole,
     });
-    return data;
+    return { token: data.token, utilisateur: data.user };
   }
 
   // Mode dev : inscription locale via l'émulateur
@@ -101,11 +102,6 @@ export async function connexionGoogle() {
  */
 export async function deconnexion() {
   if (API_BASE_URL) {
-    try {
-      await apiClient.post(ENDPOINTS.AUTH_DECONNEXION);
-    } catch {
-      // Déconnexion locale même si le serveur échoue
-    }
     localStorage.removeItem(CLE_TOKEN);
     localStorage.removeItem(CLE_UTILISATEUR);
     return;
@@ -121,8 +117,8 @@ export async function deconnexion() {
  */
 export async function fetchProfil() {
   if (API_BASE_URL) {
-    const { data } = await apiClient.get(ENDPOINTS.AUTH_PROFIL);
-    return data;
+    const raw = localStorage.getItem(CLE_UTILISATEUR);
+    return raw ? JSON.parse(raw) : null;
   }
 
   // Mode dev : retourne le profil depuis localStorage

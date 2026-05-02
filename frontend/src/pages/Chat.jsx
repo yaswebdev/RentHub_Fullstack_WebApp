@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../constants/api';
 import {
   fetchChats,
   fetchMessages,
@@ -18,6 +19,7 @@ export const Chat = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const messagesFin = useRef(null);
+  const currentUserId = user?.id || user?.uid;
 
   const [chats, setChats] = useState([]);
   const [chatActif, setChatActif] = useState(chatId || null);
@@ -29,19 +31,21 @@ export const Chat = () => {
 
   // Charger la liste des conversations
   useEffect(() => {
-    if (!user?.uid) return;
-    fetchChats(user.uid)
+    if (!currentUserId) return;
+    fetchChats(currentUserId)
       .then((data) => { setChats(data); setChargementChats(false); })
       .catch(() => setChargementChats(false));
-  }, [user?.uid]);
+  }, [currentUserId]);
 
   // Abonnement aux messages du chat actif
   useEffect(() => {
     if (!chatActif) return;
     const desabonner = abonnerMessages(chatActif, (msgs) => {
       setMessages(msgs.sort((a, b) => {
-        const ta = a.createdAt?.toDate?.()?.getTime() ?? 0;
-        const tb = b.createdAt?.toDate?.()?.getTime() ?? 0;
+        const ta = a.createdAt?.toDate?.()?.getTime?.()
+          ?? (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const tb = b.createdAt?.toDate?.()?.getTime?.()
+          ?? (b.createdAt ? new Date(b.createdAt).getTime() : 0);
         return ta - tb;
       }));
     });
@@ -59,25 +63,25 @@ export const Chat = () => {
     const userMsg = texte.trim();
     setEnvoi(true);
     try {
-      await envoyerMessage(chatActif, userMsg, user.uid);
+      await envoyerMessage(chatActif, userMsg, currentUserId);
       setTexte('');
-      
-      // Simulation d'une réponse de l'hôte après 2 secondes
-      setTimeout(async () => {
-        const responses = [
-          "C'est entendu ! Je vérifie ça pour vous.",
-          "Super choix ! Le logement sera prêt pour votre arrivée.",
-          "Bonjour ! Bien sûr, la piscine est chauffée.",
-          "Pas de souci, j'ai bien pris note de votre demande.",
-        ];
-        const randomRes = responses[Math.floor(Math.random() * responses.length)];
-        const autreId = chatActifData?.participantDetails
-          ? Object.keys(chatActifData.participantDetails).find(id => id !== user?.uid)
-          : 'host_id';
-        
-        await envoyerMessage(chatActif, randomRes, autreId || 'host_id');
-      }, 2000);
+      if (!API_BASE_URL) {
+        // Simulation d'une réponse de l'hôte après 2 secondes (mode dev)
+        setTimeout(async () => {
+          const responses = [
+            "C'est entendu ! Je vérifie ça pour vous.",
+            "Super choix ! Le logement sera prêt pour votre arrivée.",
+            "Bonjour ! Bien sûr, la piscine est chauffée.",
+            "Pas de souci, j'ai bien pris note de votre demande.",
+          ];
+          const randomRes = responses[Math.floor(Math.random() * responses.length)];
+          const autreId = chatActifData?.participantDetails
+            ? Object.keys(chatActifData.participantDetails).find(id => id !== user?.uid)
+            : 'host_id';
 
+          await envoyerMessage(chatActif, randomRes, autreId || 'host_id');
+        }, 2000);
+      }
     } catch (err) {
       console.error('[Chat] Erreur envoi :', err);
     } finally {
@@ -86,14 +90,15 @@ export const Chat = () => {
   };
 
   const chatsFiltrés = chats.filter((c) => {
-    const titre = c.propertyTitle || c.proprieteTitre || '';
+    const titre = c.propertyTitle || c.proprieteTitre || c.annonceTitre || '';
     return titre.toLowerCase().includes(recherche.toLowerCase());
   });
 
   const chatActifData = chats.find((c) => c.id === chatActif);
-  const autrePseudo = chatActifData?.participantDetails
-    ? Object.entries(chatActifData.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.name
-    : 'Conversation';
+  const autrePseudo = chatActifData?.otherUserName
+    || (chatActifData?.participantDetails
+      ? Object.entries(chatActifData.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.name
+      : 'Conversation');
 
   return (
     <div className="pt-20 min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors">
@@ -130,11 +135,13 @@ export const Chat = () => {
             </div>
           ) : (
             chatsFiltrés.map((chat) => {
-              const autre = chat.participantDetails
-                ? Object.entries(chat.participantDetails).find(([id]) => id !== user?.uid)
+              const nomAutre = chat.otherUserName
+                || (chat.participantDetails
+                  ? Object.entries(chat.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.name
+                  : 'Utilisateur');
+              const photoAutre = chat.participantDetails
+                ? Object.entries(chat.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.photo
                 : null;
-              const nomAutre = autre?.[1]?.name || 'Utilisateur';
-              const photoAutre = autre?.[1]?.photo || null;
               const estSelectionné = chatActif === chat.id;
               
               return (
@@ -167,7 +174,7 @@ export const Chat = () => {
                       "text-sm truncate",
                       estSelectionné ? "text-primary-700 dark:text-primary-400 font-medium" : "text-slate-500 dark:text-slate-400"
                     )}>
-                      {chat.lastMessage || chat.proprieteTitre || 'Cliquez pour discuter'}
+                      {chat.lastMessage || chat.propertyTitle || chat.proprieteTitre || 'Cliquez pour discuter'}
                     </p>
                   </div>
                 </button>
@@ -225,8 +232,10 @@ export const Chat = () => {
                 </div>
               ) : (
                 messages.map((msg, idx) => {
-                  const estMoi = msg.senderId === user?.uid;
-                  const showAvatar = idx === 0 || messages[idx-1]?.senderId !== msg.senderId;
+                  const senderId = msg.senderId || msg.expediteurId;
+                  const prevSenderId = messages[idx - 1]?.senderId || messages[idx - 1]?.expediteurId;
+                  const estMoi = senderId === currentUserId;
+                  const showAvatar = idx === 0 || prevSenderId !== senderId;
                   
                   return (
                     <motion.div
@@ -248,7 +257,7 @@ export const Chat = () => {
                           ? 'bg-primary-600 text-white rounded-br-sm'
                           : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-sm border border-slate-100 dark:border-slate-700'
                       )}>
-                        {msg.text}
+                        {msg.text || msg.contenu}
                         <span className={cn(
                            "absolute -bottom-5 text-[9px] font-bold text-slate-400 uppercase tracking-tighter whitespace-nowrap",
                            estMoi ? "right-0" : "left-0"
