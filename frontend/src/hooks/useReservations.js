@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchMesReservations,
+  fetchReservationsHote,
   creerReservation,
   annulerReservation,
 } from '../api/reservationsAPI';
@@ -96,4 +97,36 @@ export function useReservations(utilisateurId) {
   }, []);
 
   return { reservations, chargement, erreur, creer, annuler };
+}
+
+/**
+ * Charger les réservations reçues par un hôte.
+ * @param {string} utilisateurId
+ */
+export function useHostReservations(utilisateurId) {
+  const [reservations, setReservations] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState(null);
+
+  useEffect(() => {
+    if (!utilisateurId) {
+      setReservations([]);
+      setChargement(false);
+      return;
+    }
+
+    fetchReservationsHote(utilisateurId)
+      .then((data) => {
+        setReservations(data);
+        setChargement(false);
+      })
+      .catch((err) => {
+        console.error('[useHostReservations] Erreur :', err);
+        setErreur(err.message);
+        setReservations(RESERVATIONS_MOCK);
+        setChargement(false);
+      });
+  }, [utilisateurId]);
+
+  return { reservations, chargement, erreur };
 }

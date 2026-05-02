@@ -41,6 +41,20 @@ export async function fetchMesReservations(utilisateurId) {
 }
 
 /**
+ * Récupérer les réservations reçues par un hôte
+ * TODO (Backend) : GET /api/reservations/host
+ */
+export async function fetchReservationsHote(utilisateurId) {
+  if (API_BASE_URL) {
+    const { data } = await apiClient.get(ENDPOINTS.RESERVATIONS_HOTE);
+    return data.map(normalizeReservation);
+  }
+
+  if (!utilisateurId) return RESERVATIONS_MOCK;
+  return RESERVATIONS_MOCK;
+}
+
+/**
  * Créer une nouvelle réservation
  * TODO (Backend) : POST /api/reservations
  * Corps : { proprieteId, dateDebut, dateFin, nombreVoyageurs }

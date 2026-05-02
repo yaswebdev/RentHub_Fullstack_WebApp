@@ -10,6 +10,11 @@ import apiClient from './client';
 import { ENDPOINTS, API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
 
+const BACKEND_BASE_URL = API_BASE_URL || 'http://localhost:5000';
+
+const normalizePhotoUrls = (urls = []) =>
+  urls.map((url) => (url?.startsWith('/') ? `${BACKEND_BASE_URL}${url}` : url));
+
 const normalizeAnnonce = (dto) => ({
   id: dto.id,
   title: dto.titre,
@@ -22,8 +27,8 @@ const normalizeAnnonce = (dto) => ({
   disponibilite: dto.disponibilite,
   hostId: dto.userId,
   hostName: dto.userName,
-  images: dto.photoUrls || [],
-  image: dto.photoUrls?.[0] || null,
+  images: normalizePhotoUrls(dto.photoUrls || []),
+  image: normalizePhotoUrls(dto.photoUrls || [])[0] || null,
   rating: dto.averageRating,
   reviewCount: dto.reviewCount,
 });
@@ -69,6 +74,23 @@ export async function fetchProprieteParId(id) {
   const propriete = PROPRIETES_MOCK.find((p) => p.id === id);
   if (!propriete) throw new Error(`Propriété ${id} introuvable`);
   return propriete;
+}
+
+/**
+ * Récupérer les annonces de l'hôte connecté
+ * TODO (Backend) : GET /api/annonces/me
+ */
+export async function fetchProprietesHote(utilisateurId) {
+  if (API_BASE_URL) {
+    const { data } = await apiClient.get(ENDPOINTS.PROPRIETES_HOTE);
+    return data.map(normalizeAnnonce);
+  }
+
+  if (!utilisateurId) return PROPRIETES_MOCK;
+  const filtered = PROPRIETES_MOCK.filter(
+    (p) => p.hostId === utilisateurId || p.hoteId === utilisateurId
+  );
+  return filtered.length ? filtered : PROPRIETES_MOCK;
 }
 
 /**

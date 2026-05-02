@@ -1,9 +1,16 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../constants/api';
 
 /** Protège les routes qui nécessitent une authentification */
-export const ProtectedRoute = ({ children }) => {
+const resolveRole = (user) => {
+  const role = user?.role?.toUpperCase?.();
+  if (role) return role;
+  return API_BASE_URL ? null : 'LOCATAIRE';
+};
+
+export const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -18,6 +25,13 @@ export const ProtectedRoute = ({ children }) => {
   if (!user) {
     // Rediriger vers la connexion en mémorisant la page cible
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (roles?.length) {
+    const role = resolveRole(user);
+    if (!role || !roles.includes(role)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;

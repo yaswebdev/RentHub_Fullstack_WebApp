@@ -9,6 +9,8 @@ import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Chat } from './pages/Chat';
 import { Booking } from './pages/Booking';
+import { HostNewListing } from './pages/HostNewListing';
+import { HostEditListing } from './pages/HostEditListing';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -43,7 +45,13 @@ export default function App() {
                     <ProtectedRoute><Chat /></ProtectedRoute>
                   } />
                   <Route path="booking/:id" element={
-                    <ProtectedRoute><Booking /></ProtectedRoute>
+                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><Booking /></ProtectedRoute>
+                  } />
+                  <Route path="host/annonces/nouveau" element={
+                    <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostNewListing /></ProtectedRoute>
+                  } />
+                  <Route path="host/annonces/:id/editer" element={
+                    <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostEditListing /></ProtectedRoute>
                   } />
 
                   {/* Redirection par défaut */}

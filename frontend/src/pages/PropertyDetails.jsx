@@ -11,6 +11,7 @@ import { Card, CardContent } from '../components/Card';
 import { HeaderSkeleton, GallerySkeleton } from '../components/Skeleton';
 import { GalleryLightbox } from '../components/GalleryLightbox';
 import DatePicker from 'react-datepicker';
+import { addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn, getLocationString, calculerNuits } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -55,6 +56,11 @@ export const PropertyDetails = () => {
   const [nouveauAvis, setNouveauAvis] = useState('');
   const [nouvelleNote, setNouvelleNote] = useState(5);
   const [avisSoumis, setAvisSoumis] = useState(false);
+  const roleValue = user?.role?.toUpperCase?.();
+  const effectiveRole = roleValue || (API_BASE_URL ? null : 'LOCATAIRE');
+  const isLocataire = ['LOCATAIRE', 'ADMIN'].includes(effectiveRole);
+  const canBook = !user || isLocataire;
+  const canContact = !user || isLocataire;
 
   // Synchroniser les avis locaux
   useEffect(() => {
@@ -73,6 +79,10 @@ export const PropertyDetails = () => {
 
   const handleContacterHote = async () => {
     if (!user) { navigate('/login'); return; }
+    if (!isLocataire) {
+      toast("Seuls les voyageurs peuvent contacter un hôte.", 'info');
+      return;
+    }
     if (!property?.hostId) return;
 
     try {
@@ -151,7 +161,9 @@ export const PropertyDetails = () => {
     : (property.rating || 0);
 
   // Calcul dynamique du prix
-  const nuits = dateArrivee && dateDepart ? calculerNuits(dateArrivee.toISOString(), dateDepart.toISOString()) : 0;
+  const nuits = dateDepart && dateArrivee
+    ? calculerNuits(dateDepart.toISOString(), dateArrivee.toISOString())
+    : 0;
   const sousTotal = prixNuit * nuits;
   const fraisMenage = 200;
   const fraisService = 150;
@@ -378,10 +390,15 @@ export const PropertyDetails = () => {
 
                   <div className="grid grid-cols-2 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden mb-4">
                     <div className="p-3 border-r border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white mb-1">Arrivée</p>
+                      <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white mb-1">Départ</p>
                       <DatePicker
-                        selected={dateArrivee}
-                        onChange={(date) => setDateArrivee(date)}
+                        selected={dateDepart}
+                        onChange={(date) => {
+                          setDateDepart(date);
+                          if (date && dateArrivee && dateArrivee <= date) {
+                            setDateArrivee(addDays(date, 1));
+                          }
+                        }}
                         placeholderText="Ajouter"
                         className="bg-transparent border-none focus:outline-none text-sm text-slate-700 dark:text-slate-200 w-full"
                         minDate={new Date()}
@@ -390,16 +407,22 @@ export const PropertyDetails = () => {
                       />
                     </div>
                     <div className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white mb-1">Départ</p>
+                      <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white mb-1">Arrivée</p>
                       <DatePicker
-                        selected={dateDepart}
-                        onChange={(date) => setDateDepart(date)}
+                        selected={dateArrivee}
+                        onChange={(date) => {
+                          if (dateDepart && date && date <= dateDepart) {
+                            setDateArrivee(addDays(dateDepart, 1));
+                            return;
+                          }
+                          setDateArrivee(date);
+                        }}
                         placeholderText="Ajouter"
                         className="bg-transparent border-none focus:outline-none text-sm text-slate-700 dark:text-slate-200 w-full"
-                        minDate={dateArrivee || new Date()}
+                        minDate={dateDepart ? addDays(dateDepart, 1) : new Date()}
                         locale={fr}
                         dateFormat="dd/MM/yyyy"
-                        disabled={!dateArrivee}
+                        disabled={!dateDepart}
                       />
                     </div>
                     <div className="col-span-2 p-3 border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
@@ -415,15 +438,25 @@ export const PropertyDetails = () => {
                     </div>
                   </div>
 
-                  <Link to={`/booking/${property?.id}?start=${dateArrivee?.toISOString()}&end=${dateDepart?.toISOString()}&guests=${voyageurs}`}>
-                    <Button 
-                      size="lg" 
+                  {canBook ? (
+                    <Link to={`/booking/${property?.id}?start=${dateDepart?.toISOString()}&end=${dateArrivee?.toISOString()}&guests=${voyageurs}`}>
+                      <Button
+                        size="lg"
+                        className="w-full rounded-2xl mb-4"
+                        disabled={!dateArrivee || !dateDepart || nuits <= 0}
+                      >
+                        Réserver
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      size="lg"
                       className="w-full rounded-2xl mb-4"
-                      disabled={!dateArrivee || !dateDepart || nuits <= 0}
+                      disabled
                     >
-                      Réserver
+                      Réservé aux voyageurs
                     </Button>
-                  </Link>
+                  )}
                   <p className="text-center text-xs text-slate-500 dark:text-slate-400 mb-6">Aucun paiement débité maintenant</p>
 
                   {nuits > 0 && (
@@ -459,10 +492,21 @@ export const PropertyDetails = () => {
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-center">
-                <Button variant="ghost" size="sm" className="text-slate-500 dark:text-slate-400" onClick={handleContacterHote}>
+              <div className="mt-6 flex flex-col items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-500 dark:text-slate-400"
+                  onClick={handleContacterHote}
+                  disabled={!canContact}
+                >
                   <MessageSquare className="h-4 w-4 mr-2" /> Contacter l'hôte
                 </Button>
+                {!canContact && (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Cette action est réservée aux voyageurs.
+                  </p>
+                )}
               </div>
             </div>
           </div>

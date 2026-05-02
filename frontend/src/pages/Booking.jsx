@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Star, Shield, CreditCard, ChevronLeft, Calendar as CalendarIcon, Users } from 'lucide-react';
 import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
@@ -38,14 +38,32 @@ const BookingInner = () => {
   const elements = useElements();
 
   const prefill = location.state || {};
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const startParam = searchParams.get('start');
+  const endParam = searchParams.get('end');
+  const guestsParam = searchParams.get('guests');
+
+  const toInputDate = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string' && value.length >= 10) return value.slice(0, 10);
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toISOString().split('T')[0];
+  };
 
   const { propriete: property, chargement: loadingProperty } = usePropriete(id);
   const currentUserId = user?.id || user?.uid;
   const { creer } = useReservations(currentUserId);
 
-  const [dateDebut, setDateDebut] = useState(prefill.dateArrivee ? prefill.dateArrivee.split('T')[0] : '');
-  const [dateFin, setDateFin] = useState(prefill.dateDepart ? prefill.dateDepart.split('T')[0] : '');
-  const [voyageurs, setVoyageurs] = useState(prefill.voyageurs || 1);
+  const [dateDebut, setDateDebut] = useState(
+    toInputDate(startParam || prefill.dateArrivee)
+  );
+  const [dateFin, setDateFin] = useState(
+    toInputDate(endParam || prefill.dateDepart)
+  );
+  const [voyageurs, setVoyageurs] = useState(
+    Number(guestsParam || prefill.voyageurs || 1)
+  );
   const [chargement, setChargement] = useState(false);
   const [methodePaiement, setMethodePaiement] = useState('sur_place');
   const [erreurCarte, setErreurCarte] = useState(null);

@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchProprietes, fetchProprieteParId } from '../api/proprietesAPI';
+import { fetchProprietes, fetchProprieteParId, fetchProprietesHote } from '../api/proprietesAPI';
 import { API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
 
@@ -136,4 +136,41 @@ export function usePropriete(id) {
   }, [id]);
 
   return { propriete, chargement, erreur };
+}
+
+/**
+ * Charger les annonces de l'hôte connecté.
+ * @param {string} utilisateurId
+ */
+export function useProprietesHote(utilisateurId) {
+  const [proprietes, setProprietes] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState(null);
+
+  const charger = useCallback(async () => {
+    if (!utilisateurId) {
+      setProprietes([]);
+      setChargement(false);
+      return;
+    }
+
+    setChargement(true);
+    setErreur(null);
+    try {
+      const donnees = await fetchProprietesHote(utilisateurId);
+      setProprietes(donnees);
+    } catch (err) {
+      console.error('[useProprietesHote] Erreur :', err);
+      setErreur(err.message || 'Erreur lors du chargement des annonces.');
+      setProprietes(PROPRIETES_MOCK);
+    } finally {
+      setChargement(false);
+    }
+  }, [utilisateurId]);
+
+  useEffect(() => {
+    charger();
+  }, [charger]);
+
+  return { proprietes, chargement, erreur, recharger: charger };
 }

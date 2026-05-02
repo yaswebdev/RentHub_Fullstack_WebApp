@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   Home, Calendar, MessageSquare, LogOut, Settings,
   Star, MapPin, Clock, CheckCircle, XCircle, AlertCircle,
-  ChevronRight, Plus, User, Heart
+  ChevronRight, Plus, User, Heart, Trash2, Pencil, Eye
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { useAuth } from '../context/AuthContext';
-import { useReservations } from '../hooks/useReservations';
+import { useReservations, useHostReservations } from '../hooks/useReservations';
 import { useFavorites } from '../context/FavoritesContext';
-import { useProprietes } from '../hooks/useProprietes';
+import { useProprietes, useProprietesHote } from '../hooks/useProprietes';
 import { deconnexion } from '../api/authAPI';
+import { supprimerPropriete } from '../api/proprietesAPI';
 import { useToast } from '../context/ToastContext';
 import { cn, formatDate } from '../lib/utils';
+import { API_BASE_URL } from '../constants/api';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
@@ -42,27 +44,110 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const currentUserId = user?.id || user?.uid;
   const { reservations, chargement, annuler } = useReservations(currentUserId);
+  const { reservations: hostReservations, chargement: chargementHost } = useHostReservations(currentUserId);
   const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const { proprietes } = useProprietes();
+  const { proprietes: hostProprietes, chargement: chargementHostProps, recharger: rechargerHostProps } = useProprietesHote(currentUserId);
   const [onglet, setOnglet] = useState('reservations');
   const [modeHote, setModeHote] = useState(false);
+  const [occupancyDays, setOccupancyDays] = useState(90);
+  const [deletingAnnonceId, setDeletingAnnonceId] = useState(null);
+  const [confirmAnnonce, setConfirmAnnonce] = useState(null);
+  const roleValue = user?.role?.toUpperCase?.();
+  const effectiveRole = roleValue || (API_BASE_URL ? null : 'LOCATAIRE');
+  const isHost = ['HOTE', 'ADMIN'].includes(effectiveRole);
 
   const mesFavoris = proprietes.filter(p => favorites.includes(p.id));
 
-  // Données factices pour le mode hôte
-  const donneesRevenus = [
-    { name: 'Juin', revenus: 4500 },
-    { name: 'Juil', revenus: 12800 },
-    { name: 'Août', revenus: 18200 },
-    { name: 'Sept', revenus: 9400 },
-    { name: 'Oct', revenus: 6200 },
-    { name: 'Nov', revenus: 3800 },
-  ];
+  const normalizeStatus = (value) => (value || '').toString().toUpperCase();
+  const isActiveStatus = (value) => !['ANNULEE', 'REFUSEE', 'CANCELLED'].includes(normalizeStatus(value));
+  const toStartOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const toDate = (value) => (value ? new Date(value) : null);
+  const msPerDay = 24 * 60 * 60 * 1000;
+
+  const hostReservationData = useMemo(
+    () => hostReservations.filter((r) => isActiveStatus(r.status || r.statut)),
+    [hostReservations]
+  );
+
+  const revenueSeries = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }).map((_, idx) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - 5 + idx, 1);
+      const label = date.toLocaleDateString('fr-FR', { month: 'short' });
+      return {
+        key: `${date.getFullYear()}-${date.getMonth()}`,
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        date,
+      };
+    });
+
+    return months.map((month) => {
+      const total = hostReservationData.reduce((sum, reservation) => {
+        const start = toDate(reservation.dateDebut || reservation.startDate);
+        if (!start) return sum;
+        if (start.getFullYear() === month.date.getFullYear() && start.getMonth() === month.date.getMonth()) {
+          const amount = Number(reservation.totalPrice || reservation.prixTotal || reservation.montant || 0);
+          return sum + amount;
+        }
+        return sum;
+      }, 0);
+
+      return { name: month.label, revenus: Math.round(total) };
+    });
+  }, [hostReservationData]);
+
+  const occupancyRate = useMemo(() => {
+    const listingsCount = hostProprietes.length;
+    if (!listingsCount) return 0;
+
+    const today = toStartOfDay(new Date());
+    const windowStart = new Date(today.getTime() - (occupancyDays - 1) * msPerDay);
+    const windowEnd = new Date(today.getTime() + msPerDay);
+
+    const bookedNights = hostReservationData.reduce((sum, reservation) => {
+      const start = toDate(reservation.dateDebut || reservation.startDate);
+      const end = toDate(reservation.dateFin || reservation.endDate);
+      if (!start || !end) return sum;
+
+      const startDay = toStartOfDay(start);
+      const endDay = toStartOfDay(end);
+      const overlapStart = startDay > windowStart ? startDay : windowStart;
+      const overlapEnd = endDay < windowEnd ? endDay : windowEnd;
+      const nights = Math.max(0, Math.ceil((overlapEnd - overlapStart) / msPerDay));
+      return sum + nights;
+    }, 0);
+
+    const totalNights = occupancyDays * listingsCount;
+    if (!totalNights) return 0;
+    return Math.min(100, Math.round((bookedNights / totalNights) * 100));
+  }, [hostProprietes.length, hostReservationData, occupancyDays]);
 
   const donneesOccupation = [
-    { name: 'Occupé', value: 65, color: '#6366f1' },
-    { name: 'Libre', value: 35, color: '#e2e8f0' },
+    { name: 'Occupé', value: occupancyRate, color: '#6366f1' },
+    { name: 'Libre', value: Math.max(0, 100 - occupancyRate), color: '#e2e8f0' },
   ];
+
+  const handleDeleteAnnonce = async (annonceId) => {
+    setDeletingAnnonceId(annonceId);
+    try {
+      await supprimerPropriete(annonceId);
+      toast('Annonce supprimee.', 'success');
+      rechargerHostProps();
+    } catch (err) {
+      toast(err.message || 'Impossible de supprimer l\'annonce.', 'error');
+    } finally {
+      setDeletingAnnonceId(null);
+    }
+  };
+
+  const requestDeleteAnnonce = (annonce) => {
+    setConfirmAnnonce({ id: annonce.id, title: annonce.title });
+  };
+
+  useEffect(() => {
+    if (!isHost) setModeHote(false);
+  }, [isHost]);
 
   const handleDeconnexion = async () => {
     try {
@@ -110,35 +195,52 @@ export const Dashboard = () => {
               <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">
                 Bonjour, {user?.displayName?.split(' ')[0] || 'Voyageur'} 👋
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{user?.email}</p>
+              <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                <span>{user?.email}</span>
+                {effectiveRole && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-700">
+                    {effectiveRole}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm">
-            <button
-              onClick={() => setModeHote(false)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                !modeHote ? "bg-primary-600 text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-              )}
-            >
-              Voyageur
-            </button>
-            <button
-              onClick={() => setModeHote(true)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                modeHote ? "bg-primary-600 text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-              )}
-            >
-              Mode Hôte
-            </button>
-          </div>
+          {isHost && (
+            <div className="flex items-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm">
+              <button
+                onClick={() => setModeHote(false)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                  !modeHote ? "bg-primary-600 text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                )}
+              >
+                Voyageur
+              </button>
+              <button
+                onClick={() => setModeHote(true)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                  modeHote ? "bg-primary-600 text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                )}
+              >
+                Mode Hôte
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-3">
-            <Link to="/search">
-              <Button variant="primary" size="sm">
-                <Plus className="h-4 w-4 mr-2" /> Nouvelle réservation
-              </Button>
-            </Link>
+            {isHost && modeHote ? (
+              <Link to="/host/annonces/nouveau">
+                <Button variant="primary" size="sm">
+                  <Plus className="h-4 w-4 mr-2" /> Nouvelle annonce
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/search">
+                <Button variant="primary" size="sm">
+                  <Plus className="h-4 w-4 mr-2" /> Nouvelle réservation
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="sm" onClick={handleDeconnexion} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
               <LogOut className="h-4 w-4 mr-2" /> Déconnexion
             </Button>
@@ -174,7 +276,7 @@ export const Dashboard = () => {
               </CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={donneesRevenus}>
+                  <AreaChart data={revenueSeries}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -195,8 +297,19 @@ export const Dashboard = () => {
 
             {/* Chart : Occupation */}
             <Card className="shadow-sm border-none dark:bg-slate-900">
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex items-center justify-between">
                 <CardTitle className="text-lg dark:text-white">Taux d'occupation</CardTitle>
+                <select
+                  className="text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-3 py-1 border border-slate-200"
+                  value={occupancyDays}
+                  onChange={(e) => setOccupancyDays(Number(e.target.value))}
+                >
+                  <option value={30}>30 jours</option>
+                  <option value={60}>60 jours</option>
+                  <option value={90}>90 jours</option>
+                  <option value={180}>180 jours</option>
+                  <option value={365}>12 mois</option>
+                </select>
               </CardHeader>
               <CardContent className="h-64 flex flex-col items-center justify-center">
                 <ResponsiveContainer width="100%" height={200}>
@@ -217,7 +330,7 @@ export const Dashboard = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="text-center">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white">65%</p>
+                  <p className="text-3xl font-black text-slate-900 dark:text-white">{occupancyRate}%</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Saison actuelle</p>
                 </div>
               </CardContent>
@@ -226,7 +339,7 @@ export const Dashboard = () => {
         )}
 
         {/* ── Onglets ─────────────────────────────────────────── */}
-        <div className="flex gap-4 border-b border-slate-200 dark:border-slate-800 mb-8">
+        <div className="flex flex-wrap gap-4 border-b border-slate-200 dark:border-slate-800 mb-8">
           <button
             onClick={() => setOnglet('reservations')}
             className={cn(
@@ -247,6 +360,30 @@ export const Dashboard = () => {
             Ma Wishlist
             {onglet === 'favoris' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600" />}
           </button>
+          {isHost && (
+            <>
+              <button
+                onClick={() => setOnglet('hostReservations')}
+                className={cn(
+                  'pb-4 px-2 text-sm font-bold transition-all relative',
+                  onglet === 'hostReservations' ? 'text-primary-600' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                )}
+              >
+                Réservations reçues
+                {onglet === 'hostReservations' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600" />}
+              </button>
+              <button
+                onClick={() => setOnglet('hostListings')}
+                className={cn(
+                  'pb-4 px-2 text-sm font-bold transition-all relative',
+                  onglet === 'hostListings' ? 'text-primary-600' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                )}
+              >
+                Mes annonces
+                {onglet === 'hostListings' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600" />}
+              </button>
+            </>
+          )}
         </div>
 
         {/* ── Contenu des onglets ──────────────────────────────── */}
@@ -362,6 +499,149 @@ export const Dashboard = () => {
                 </Card>
               ))
             )}
+          </div>
+        )}
+
+        {onglet === 'hostReservations' && isHost && (
+          <div className="space-y-4">
+            {chargementHost ? (
+              <div className="space-y-4">
+                {[1, 2].map((i) => <div key={i} className="h-28 bg-white dark:bg-slate-900 rounded-2xl animate-pulse" />)}
+              </div>
+            ) : hostReservations.length === 0 ? (
+              <Card className="p-12 text-center dark:bg-slate-900">
+                <MessageSquare className="h-16 w-16 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Aucune réservation reçue</h3>
+                <p className="text-slate-500 dark:text-slate-400">Vos prochaines réservations apparaîtront ici.</p>
+              </Card>
+            ) : (
+              hostReservations.map((r) => (
+                <Card key={r.id} className="overflow-hidden hover:shadow-md transition-shadow dark:bg-slate-900">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col sm:flex-row">
+                      <div className="w-full sm:w-36 h-32 sm:h-auto shrink-0 overflow-hidden rounded-t-3xl sm:rounded-l-3xl sm:rounded-tr-none">
+                        <img
+                          src={r.propertyImage || r.imagePropriete || 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&q=80&w=400'}
+                          alt={r.propertyTitle || r.titrePropriete}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="flex-1 p-5">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                            {r.propertyTitle || r.titrePropriete}
+                          </h3>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shrink-0 text-slate-600 bg-slate-50 border-slate-200">
+                            {r.status || r.statut}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-4">
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(r.startDate || r.dateDebut)}</span>
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {r.nights || r.nombreNuits || '—'} nuits</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{(r.totalPrice || r.prixTotal || 0).toLocaleString('fr-MA')} DH</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link to={`/property/${r.propertyId || r.proprieteId || r.annonceId}`}>
+                            <Button size="sm" variant="outline">Voir le logement</Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
+        {onglet === 'hostListings' && isHost && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {chargementHostProps ? (
+              [1, 2, 3].map((i) => <div key={i} className="h-64 bg-white dark:bg-slate-900 rounded-2xl animate-pulse" />)
+            ) : hostProprietes.length === 0 ? (
+              <div className="col-span-full py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <Home className="h-16 w-16 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Aucune annonce</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-6">Créez votre première annonce pour accueillir des voyageurs.</p>
+                <Link to="/host/annonces/nouveau">
+                  <Button variant="primary">Créer une annonce</Button>
+                </Link>
+              </div>
+            ) : (
+              hostProprietes.map((p) => (
+                <Card key={p.id} className="overflow-hidden group dark:bg-slate-900">
+                  <div className="relative h-44 overflow-hidden">
+                    <img
+                      src={p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=800'}
+                      alt={p.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute bottom-3 left-3 bg-white/90 px-2 py-0.5 rounded text-[10px] font-bold">
+                      {p.type || 'Logement'}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1 line-clamp-1">{p.title}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{p.ville || p.location}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-slate-900 dark:text-white text-sm">{p.pricePerNight || p.prixParNuit} DH <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">/nuit</span></p>
+                      <div className="flex items-center gap-2">
+                        <Link to={`/host/annonces/${p.id}/editer`}>
+                          <Button size="sm" variant="primary">
+                            <Pencil className="h-4 w-4" /> Editer
+                          </Button>
+                        </Link>
+                        <Link to={`/property/${p.id}`}>
+                          <Button size="sm" variant="outline">
+                            <Eye className="h-4 w-4" /> Voir
+                          </Button>
+                        </Link>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500"
+                          isLoading={deletingAnnonceId === p.id}
+                          onClick={() => requestDeleteAnnonce(p)}
+                        >
+                          <Trash2 className="h-4 w-4" /> Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
+        {confirmAnnonce && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200">
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900">Supprimer cette annonce ?</h3>
+                <p className="text-sm text-slate-500 mt-2">
+                  "{confirmAnnonce.title}" sera supprimee definitivement.
+                </p>
+              </div>
+              <div className="p-6 flex items-center justify-end gap-3">
+                <Button variant="ghost" onClick={() => setConfirmAnnonce(null)}>
+                  Annuler
+                </Button>
+                <Button
+                  variant="danger"
+                  isLoading={deletingAnnonceId === confirmAnnonce.id}
+                  onClick={() => {
+                    const id = confirmAnnonce.id;
+                    setConfirmAnnonce(null);
+                    handleDeleteAnnonce(id);
+                  }}
+                >
+                  Supprimer
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

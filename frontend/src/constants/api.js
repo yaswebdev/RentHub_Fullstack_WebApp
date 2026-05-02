@@ -44,6 +44,7 @@ export const ENDPOINTS = {
   RESERVATIONS:          '/api/reservations',
   RESERVATION:      (id) => `/api/reservations/${id}`,
   MES_RESERVATIONS:      '/api/reservations/me',
+  RESERVATIONS_HOTE:     '/api/reservations/host',
   CREER_RESERVATION:     '/api/reservations',
   ANNULER_RESERVATION:(id)=> `/api/reservations/${id}/cancel`,
   REFUND_STATUS:    (id) => `/api/reservations/${id}/refund-status`,

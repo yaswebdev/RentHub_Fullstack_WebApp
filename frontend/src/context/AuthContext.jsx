@@ -23,6 +23,18 @@ const AuthContext = createContext({
   deconnecter: () => {},
 });
 
+const normalizeUser = (user) => {
+  if (!user) return null;
+  return {
+    ...user,
+    id: user.id ?? user.uid,
+    uid: user.uid ?? user.id,
+    displayName: user.displayName || user.nom || user.name || user.email,
+    photoURL: user.photoURL || user.photoUrl || user.avatarUrl || null,
+    role: user.role || user.roles?.[0] || null,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [utilisateur, setUtilisateur] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem(CLE_TOKEN));
@@ -36,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
       if (tokenStocke && userStocke) {
         try {
-          setUtilisateur(JSON.parse(userStocke));
+          setUtilisateur(normalizeUser(JSON.parse(userStocke)));
           setToken(tokenStocke);
         } catch {
           localStorage.removeItem(CLE_TOKEN);
@@ -47,7 +59,7 @@ export const AuthProvider = ({ children }) => {
     } else {
       /* ── Mode développement : écouter l'émulateur local ─────────── */
       const desabonner = onAuthStateChanged(auth, (u) => {
-        setUtilisateur(u);
+        setUtilisateur(normalizeUser(u));
         setChargement(false);
       });
       return desabonner;
@@ -59,9 +71,10 @@ export const AuthProvider = ({ children }) => {
    * Le backend renvoie { token, utilisateur } et on stocke tout ici.
    */
   const connecterAvecJWT = (donneesUtilisateur, jwtToken) => {
+    const normalized = normalizeUser(donneesUtilisateur);
     localStorage.setItem(CLE_TOKEN, jwtToken);
-    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(donneesUtilisateur));
-    setUtilisateur(donneesUtilisateur);
+    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(normalized));
+    setUtilisateur(normalized);
     setToken(jwtToken);
   };
 
