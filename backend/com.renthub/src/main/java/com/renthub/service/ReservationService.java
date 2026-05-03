@@ -209,11 +209,11 @@ public class ReservationService {
                     "Impossible d'annuler une réservation au statut '" + reservation.getStatut() + "'");
         }
 
-        // Guest: can only cancel before start date
+        // Guest: can cancel up to and including the start date (blocked only after stay begins)
         if (isLocataire && !isAdmin) {
-            if (!LocalDate.now().isBefore(reservation.getDateDebut())) {
+            if (LocalDate.now().isAfter(reservation.getDateDebut())) {
                 throw new BusinessRuleException(
-                        "Un locataire ne peut annuler qu'avant la date de début du séjour");
+                        "Un locataire ne peut annuler qu'avant ou le jour de la date de début du séjour");
             }
         }
 
