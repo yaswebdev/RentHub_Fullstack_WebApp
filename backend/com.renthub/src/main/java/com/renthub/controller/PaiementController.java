@@ -2,12 +2,15 @@ package com.renthub.controller;
 
 import com.renthub.dto.ConfirmPaymentRequest;
 import com.renthub.dto.CreatePaymentIntentRequest;
+import com.renthub.dto.CreateCheckoutSessionRequest;
+import com.renthub.dto.CheckoutSessionResponse;
 import com.renthub.dto.PaymentIntentResponse;
 import com.renthub.service.PaiementService;
 import com.stripe.exception.StripeException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -36,6 +39,32 @@ public class PaiementController {
     ) throws StripeException {
         return ResponseEntity.ok(
             paiementService.confirmPaymentIntent(request.getPaymentIntentId(), request.getPaymentMethodId())
+        );
+    }
+
+    @PostMapping("/checkout-session")
+    public ResponseEntity<CheckoutSessionResponse> createCheckoutSession(
+            @Valid @RequestBody CreateCheckoutSessionRequest request,
+            Authentication authentication
+    ) throws StripeException {
+        String email = authentication.getName();
+        return ResponseEntity.ok(
+            paiementService.createCheckoutSession(
+                request.getReservationId(),
+                request.getSuccessUrl(),
+                request.getCancelUrl(),
+                email
+            )
+        );
+    }
+
+    @PostMapping("/checkout-session/sync")
+    public ResponseEntity<Map<String, Object>> syncCheckoutSession(
+            @RequestBody Map<String, String> request,
+            Authentication authentication
+    ) throws StripeException {
+        return ResponseEntity.ok(
+            paiementService.syncCheckoutSession(request.get("sessionId"), authentication.getName())
         );
     }
 

@@ -18,6 +18,7 @@ export const HostEditListing = () => {
   const [form, setForm] = useState({
     titre: '',
     description: '',
+    type: '',
     prixNuit: '',
     adresse: '',
     latitude: '',
@@ -30,6 +31,10 @@ export const HostEditListing = () => {
     () => ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
     []
   );
+  const TYPES_LOGEMENT = useMemo(
+    () => ['Riad', 'Appartement', 'Villa', 'Studio', 'Dar', 'Maison'],
+    []
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -38,6 +43,7 @@ export const HostEditListing = () => {
         setForm({
           titre: propriete.title || propriete.titre || '',
           description: propriete.description || '',
+          type: propriete.type || '',
           prixNuit: propriete.pricePerNight || propriete.prixNuit || '',
           adresse: propriete.adresse || propriete.location || '',
           latitude: propriete.latitude ?? '',
@@ -63,6 +69,7 @@ export const HostEditListing = () => {
       const payload = {
         titre: form.titre.trim(),
         description: form.description.trim(),
+        type: form.type,
         prixNuit: form.prixNuit ? Number(form.prixNuit) : null,
         adresse: form.adresse.trim(),
         latitude: form.latitude ? Number(form.latitude) : null,
@@ -128,6 +135,34 @@ export const HostEditListing = () => {
                 onChange={(e) => updateField('titre', e.target.value)}
                 required
               />
+
+              <div className="w-full space-y-4">
+                <label className="text-sm font-bold text-slate-700 tracking-tight">Type de logement</label>
+                <div className="flex flex-wrap gap-2">
+                  {TYPES_LOGEMENT.map((type) => {
+                    const isActive = form.type === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => updateField('type', type)}
+                        aria-pressed={isActive}
+                        className={
+                          `px-4 py-2 rounded-full text-sm font-semibold border transition-all ` +
+                          (isActive
+                            ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-primary-300 hover:text-primary-700')
+                        }
+                      >
+                        {type}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!form.type && (
+                  <p className="text-xs text-slate-500">Choisir un type</p>
+                )}
+              </div>
 
               <div className="w-full space-y-2">
                 <label className="text-sm font-bold text-slate-700 tracking-tight">Description</label>

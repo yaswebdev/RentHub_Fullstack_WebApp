@@ -16,10 +16,9 @@ import axios from 'axios';
 import { API_BASE_URL, CLE_TOKEN } from '../constants/api';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL || 'http://localhost:5000',
+  baseURL: API_BASE_URL || 'http://localhost:8080',
   timeout: 12000,
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
 });
@@ -51,6 +50,7 @@ apiClient.interceptors.response.use(
     }
 
     if (erreur.response?.status === 403) {
+      // Keep session on 403 and let screens show their own error messages.
       console.warn('[API] Accès refusé — permissions insuffisantes');
     }
 

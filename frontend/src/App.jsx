@@ -11,6 +11,9 @@ import { Chat } from './pages/Chat';
 import { Booking } from './pages/Booking';
 import { HostNewListing } from './pages/HostNewListing';
 import { HostEditListing } from './pages/HostEditListing';
+import { PaymentSuccess } from './pages/PaymentSuccess';
+import { PaymentCancel } from './pages/PaymentCancel';
+import { Profile } from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -46,6 +49,15 @@ export default function App() {
                   } />
                   <Route path="booking/:id" element={
                     <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><Booking /></ProtectedRoute>
+                  } />
+                  <Route path="profile" element={
+                    <ProtectedRoute><Profile /></ProtectedRoute>
+                  } />
+                  <Route path="payment/success" element={
+                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><PaymentSuccess /></ProtectedRoute>
+                  } />
+                  <Route path="payment/cancel" element={
+                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><PaymentCancel /></ProtectedRoute>
                   } />
                   <Route path="host/annonces/nouveau" element={
                     <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostNewListing /></ProtectedRoute>

@@ -3,6 +3,7 @@ package com.renthub.service;
 import com.renthub.entity.Paiement;
 import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
+import com.renthub.repository.UserRepository;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
@@ -35,9 +36,12 @@ class PaiementServiceTest {
     @Mock
     private ReservationRepository reservationRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @Test
     void handleWebhookShouldBeIdempotentForDuplicateEventId() {
-        PaiementService paiementService = new PaiementService(paiementRepository, reservationRepository);
+        PaiementService paiementService = new PaiementService(paiementRepository, reservationRepository, userRepository);
         ReflectionTestUtils.setField(paiementService, "stripeSecretKey", "sk_test_fake");
         ReflectionTestUtils.setField(paiementService, "stripeWebhookSecret", "whsec_fake");
 

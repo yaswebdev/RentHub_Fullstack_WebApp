@@ -18,12 +18,13 @@ const normalizeReservation = (dto) => ({
   titrePropriete: dto.annonceTitre,
   dateDebut: dto.dateDebut,
   dateFin: dto.dateFin,
-  statut: dto.statut,
-  status: dto.statut?.toLowerCase?.() || dto.statut,
+  statut: dto.paymentStatus === 'PAYE' ? 'PAYEE' : dto.statut,
+  status: (dto.paymentStatus === 'PAYE' ? 'PAYEE' : dto.statut)?.toLowerCase?.() || dto.statut,
   prixTotal: dto.montant,
   totalPrice: dto.montant,
   createdAt: dto.createdAt,
   cancellationReason: dto.cancellationReason,
+  paymentStatus: dto.paymentStatus,
 });
 
 /**

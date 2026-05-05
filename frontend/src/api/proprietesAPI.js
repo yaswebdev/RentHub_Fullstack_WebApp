@@ -9,6 +9,7 @@
 import apiClient from './client';
 import { ENDPOINTS, API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
+import { getProfilePhotoUrl } from '../utils/imageHelpers';
 
 const BACKEND_BASE_URL = API_BASE_URL || 'http://localhost:5000';
 
@@ -19,6 +20,7 @@ const normalizeAnnonce = (dto) => ({
   id: dto.id,
   title: dto.titre,
   description: dto.description,
+  type: dto.type || dto.typeLogement,
   pricePerNight: dto.prixNuit,
   adresse: dto.adresse,
   location: dto.adresse,
@@ -27,6 +29,7 @@ const normalizeAnnonce = (dto) => ({
   disponibilite: dto.disponibilite,
   hostId: dto.userId,
   hostName: dto.userName,
+  hostPhoto: getProfilePhotoUrl(dto.userPhotoUrl),
   images: normalizePhotoUrls(dto.photoUrls || []),
   image: normalizePhotoUrls(dto.photoUrls || [])[0] || null,
   rating: dto.averageRating,

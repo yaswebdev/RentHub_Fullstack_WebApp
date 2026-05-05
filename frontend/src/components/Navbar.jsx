@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, User, Globe, Map as MapIcon, X } from 'lucide-react';
+import { Search, Menu, User, Map as MapIcon, X } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
@@ -12,6 +12,8 @@ export const Navbar = () => {
   const [menuOuvert, setMenuOuvert] = useState(false);
   // Désactiver la barre de recherche sur les pages d'authentification
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const roleValue = user?.role?.toUpperCase?.();
+  const isHost = ['HOTE', 'ADMIN'].includes(roleValue);
 
   return (
     <>
@@ -47,21 +49,14 @@ export const Navbar = () => {
 
             {/* Menu Utilisateur (Desktop) */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
-              <button className="text-sm font-semibold text-slate-700 hover:text-slate-900">
-                Devenir hôte
-              </button>
-              <button className="p-2 rounded-full hover:bg-slate-100 text-slate-600" aria-label="Langue">
-                <Globe className="h-5 w-5" />
-              </button>
+              {!isHost && (
+                <button className="text-sm font-semibold text-slate-700 hover:text-slate-900">
+                  Devenir hôte
+                </button>
+              )}
               {user ? (
                 <Link to="/dashboard">
-                  <div className="flex bg-white items-center gap-3 border border-slate-200 rounded-full p-1.5 pr-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                    <img 
-                      src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=6366f1&color=fff`} 
-                      alt="Profil" 
-                      className="h-9 w-9 rounded-full object-cover border border-slate-100"
-                      referrerPolicy="no-referrer"
-                    />
+                  <div className="flex bg-white items-center gap-3 border border-slate-200 rounded-full px-4 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                     <span className="text-sm font-semibold tracking-tight text-slate-700">
                       Tableau de bord
                     </span>

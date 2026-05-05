@@ -78,6 +78,12 @@ export const AuthProvider = ({ children }) => {
     setToken(jwtToken);
   };
 
+  const mettreAJourUtilisateur = (donneesUtilisateur) => {
+    const normalized = normalizeUser(donneesUtilisateur);
+    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(normalized));
+    setUtilisateur(normalized);
+  };
+
   /**
    * Déconnexion — vide le contexte et le localStorage.
    */
@@ -95,6 +101,7 @@ export const AuthProvider = ({ children }) => {
     chargement,
     loading: chargement,      // alias
     connecterAvecJWT,
+    mettreAJourUtilisateur,
     deconnecter,
   };
 

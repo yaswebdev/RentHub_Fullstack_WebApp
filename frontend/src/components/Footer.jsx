@@ -4,12 +4,13 @@ import { Map, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
 
 export const Footer = () => {
   return (
-    <footer className="bg-slate-900 border-t border-slate-800 relative overflow-hidden">
+    <footer className="bg-slate-950 border-t border-slate-800 relative overflow-hidden">
       {/* Decorative gradient blur */}
-      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-primary-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-primary-600/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
       
       <div className="container mx-auto px-4 py-16 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           {/* Brand Col */}
           <div className="md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-6">
@@ -40,9 +41,9 @@ export const Footer = () => {
           </div>
 
           {/* Links Cols */}
-          <div>
-            <h3 className="text-white font-bold mb-6">Explorez</h3>
-            <ul className="space-y-4 text-sm text-slate-400">
+          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
+            <h3 className="text-white font-bold mb-5">Explorez</h3>
+            <ul className="space-y-3 text-sm text-slate-400">
               <li><Link to="/search?q=Marrakech" className="hover:text-primary-400 transition-colors">Marrakech</Link></li>
               <li><Link to="/search?q=Casablanca" className="hover:text-primary-400 transition-colors">Casablanca</Link></li>
               <li><Link to="/search?q=Agadir" className="hover:text-primary-400 transition-colors">Agadir</Link></li>
@@ -51,9 +52,9 @@ export const Footer = () => {
             </ul>
           </div>
 
-          <div>
-            <h3 className="text-white font-bold mb-6">Héberger</h3>
-            <ul className="space-y-4 text-sm text-slate-400">
+          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
+            <h3 className="text-white font-bold mb-5">Héberger</h3>
+            <ul className="space-y-3 text-sm text-slate-400">
               <li><a href="#" className="hover:text-primary-400 transition-colors">Devenez hôte RentHub</a></li>
               <li><a href="#" className="hover:text-primary-400 transition-colors">Ressources pour les hôtes</a></li>
               <li><a href="#" className="hover:text-primary-400 transition-colors">Forum de la communauté</a></li>
@@ -61,14 +62,14 @@ export const Footer = () => {
             </ul>
           </div>
 
-          <div>
-            <h3 className="text-white font-bold mb-6">Assistance</h3>
-            <ul className="space-y-4 text-sm text-slate-400">
+          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
+            <h3 className="text-white font-bold mb-5">Assistance</h3>
+            <ul className="space-y-3 text-sm text-slate-400">
               <li><a href="#" className="hover:text-primary-400 transition-colors">Centre d'aide</a></li>
               <li><a href="#" className="hover:text-primary-400 transition-colors">Annulation d'une réservation</a></li>
               <li><a href="#" className="hover:text-primary-400 transition-colors">Signaler un problème</a></li>
               <li>
-                <div className="flex items-center gap-2 mt-2 pt-4 border-t border-slate-800">
+                <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/10">
                   <Mail className="h-4 w-4 text-primary-400" />
                   <a href="mailto:contact@renthub-maroc.ma" className="hover:text-white transition-colors">contact@renthub-maroc.ma</a>
                 </div>
@@ -78,7 +79,7 @@ export const Footer = () => {
         </div>
 
         {/* Bottom */}
-        <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
           <p>© {new Date().getFullYear()} RentHub Maroc, Inc. Tous droits réservés.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white transition-colors">Confidentialité</a>

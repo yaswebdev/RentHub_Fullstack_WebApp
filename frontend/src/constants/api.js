@@ -59,6 +59,7 @@ export const ENDPOINTS = {
   PHOTO:          (photoId) => `/api/photos/${photoId}`,
 
   // ── Paiements ────────────────────────────────────────────
+  PAIEMENT_CHECKOUT_SESSION: '/api/paiements/checkout-session',
   PAIEMENT_CREATE_INTENT: '/api/paiements/create-intent',
   PAIEMENT_CONFIRM:       '/api/paiements/confirm',
 

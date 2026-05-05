@@ -47,11 +47,6 @@ public class MessageService {
             throw new AccessDeniedException("Non autorisé à envoyer un message dans cette conversation");
         }
 
-        // Don't allow messaging on cancelled reservations
-        if ("ANNULEE".equals(reservation.getStatut()) || "REFUSEE".equals(reservation.getStatut())) {
-            throw new BusinessRuleException("Impossible d'envoyer un message sur une réservation annulée ou refusée");
-        }
-
         Message message = Message.builder()
                 .contenu(request.getContenu())
                 .lu(false)

@@ -1,24 +1,31 @@
 package com.renthub.service;
 
 import com.renthub.dto.PaymentIntentResponse;
+import com.renthub.dto.CheckoutSessionResponse;
 import com.renthub.entity.Paiement;
 import com.renthub.entity.Reservation;
+import com.renthub.entity.Role;
+import com.renthub.entity.User;
 import com.renthub.exception.BusinessRuleException;
 import com.renthub.exception.ResourceNotFoundException;
 import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
+import com.renthub.repository.UserRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
+import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
 import com.stripe.param.RefundCreateParams;
+import com.stripe.param.checkout.SessionCreateParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +38,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PaiementService {
 
+    private static final String STRIPE_CURRENCY = "mad";
+
     private final PaiementRepository paiementRepository;
     private final ReservationRepository reservationRepository;
+    private final UserRepository userRepository;
 
     @Value("${stripe.secret.key:}")
     private String stripeSecretKey;
@@ -75,7 +85,7 @@ public class PaiementService {
 
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                 .setAmount(amountInCents)
-                .setCurrency("eur")
+            .setCurrency(STRIPE_CURRENCY)
                 .putMetadata("reservationId", String.valueOf(reservationId))
                 .build();
 
@@ -123,6 +133,140 @@ public class PaiementService {
         paiementRepository.save(paiement);
 
         return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), paiement.getStatut());
+    }
+
+        public CheckoutSessionResponse createCheckoutSession(
+            Integer reservationId,
+            String successUrl,
+            String cancelUrl,
+            String userEmail
+        ) throws StripeException {
+        initStripe();
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
+
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new AccessDeniedException("Utilisateur non authentifié");
+        }
+
+        User currentUser = userRepository.findByEmailIgnoreCase(userEmail.trim())
+            .orElseThrow(() -> new AccessDeniedException("Utilisateur introuvable"));
+
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+        boolean isReservationOwner = reservation.getLocataire() != null
+            && reservation.getLocataire().getId() != null
+            && reservation.getLocataire().getId().equals(currentUser.getId());
+
+        if (!isReservationOwner && !isAdmin) {
+            throw new AccessDeniedException("Non autorisé à payer cette réservation");
+        }
+
+        if ("ANNULEE".equalsIgnoreCase(reservation.getStatut()) || "REFUSEE".equalsIgnoreCase(reservation.getStatut())) {
+            throw new BusinessRuleException("Impossible de payer une réservation annulée ou refusée");
+        }
+
+        Paiement existing = paiementRepository.findByReservationId(reservationId).orElse(null);
+        if (existing != null && "PAYE".equalsIgnoreCase(existing.getStatut())) {
+            throw new BusinessRuleException("Cette réservation est déjà payée");
+        }
+
+        long amountInCents = toCents(reservation.getMontant());
+        String listingTitle = reservation.getAnnonce() != null ? reservation.getAnnonce().getTitre() : "Réservation RentHub";
+
+        SessionCreateParams params = SessionCreateParams.builder()
+            .setMode(SessionCreateParams.Mode.PAYMENT)
+            .setSuccessUrl(successUrl)
+            .setCancelUrl(cancelUrl)
+            .putMetadata("reservationId", String.valueOf(reservationId))
+            .setPaymentIntentData(
+                SessionCreateParams.PaymentIntentData.builder()
+                    .putMetadata("reservationId", String.valueOf(reservationId))
+                    .build()
+            )
+            .addLineItem(
+                SessionCreateParams.LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(
+                        SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(STRIPE_CURRENCY)
+                            .setUnitAmount(amountInCents)
+                            .setProductData(
+                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName("Réservation - " + listingTitle)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+            .build();
+
+        Session session = Session.create(params);
+        return new CheckoutSessionResponse(session.getId(), session.getUrl());
+        }
+
+    @Transactional
+    public Map<String, Object> syncCheckoutSession(String sessionId, String userEmail) throws StripeException {
+        initStripe();
+
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new BusinessRuleException("sessionId est obligatoire");
+        }
+
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new AccessDeniedException("Utilisateur non authentifié");
+        }
+
+        User currentUser = userRepository.findByEmailIgnoreCase(userEmail.trim())
+            .orElseThrow(() -> new AccessDeniedException("Utilisateur introuvable"));
+
+        Session session = Session.retrieve(sessionId);
+        String reservationIdRaw = session.getMetadata() != null ? session.getMetadata().get("reservationId") : null;
+        if (reservationIdRaw == null || reservationIdRaw.isBlank()) {
+            throw new BusinessRuleException("Session Stripe invalide");
+        }
+
+        Integer reservationId = Integer.valueOf(reservationIdRaw);
+        Reservation reservation = reservationRepository.findById(reservationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
+
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+        boolean isReservationOwner = reservation.getLocataire() != null
+            && reservation.getLocataire().getId() != null
+            && reservation.getLocataire().getId().equals(currentUser.getId());
+
+        if (!isReservationOwner && !isAdmin) {
+            throw new AccessDeniedException("Non autorisé à synchroniser cette réservation");
+        }
+
+        Paiement paiement = paiementRepository.findByReservationId(reservationId).orElseGet(() -> Paiement.builder()
+            .reservation(reservation)
+            .montant(reservation.getMontant().doubleValue())
+            .statut("EN_ATTENTE")
+            .createdAt(LocalDateTime.now())
+            .build());
+
+        String paymentIntentId = session.getPaymentIntent();
+        if (paymentIntentId != null && !paymentIntentId.isBlank()) {
+            paiement.setStripePaymentIntentId(paymentIntentId);
+        }
+
+        if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
+            paiement.setStatut("PAYE");
+        } else {
+            paiement.setStatut("EN_ATTENTE");
+        }
+
+        paiementRepository.save(paiement);
+        updateReservationStatusFromPayment(paiement);
+
+        return Map.of(
+            "sessionId", sessionId,
+            "reservationId", reservationId,
+            "paymentStatus", session.getPaymentStatus(),
+            "reservationStatus", reservation.getStatut()
+        );
     }
 
     // ─── Refund ──────────────────────────────────────────────────
@@ -200,19 +344,65 @@ public class PaiementService {
 
         String eventType = event.getType();
 
+        // Handle checkout.session.completed events
+        if ("checkout.session.completed".equals(eventType)) {
+            Session session = (Session) event.getDataObjectDeserializer()
+                .getObject()
+                .orElseThrow(() -> new RuntimeException("Impossible de parser Checkout Session"));
+
+            String reservationIdRaw = session.getMetadata() != null ? session.getMetadata().get("reservationId") : null;
+            String paymentIntentId = session.getPaymentIntent();
+            if (reservationIdRaw != null && paymentIntentId != null) {
+            Integer reservationId = Integer.valueOf(reservationIdRaw);
+            Paiement paiement = paiementRepository.findByReservationId(reservationId)
+                .orElseGet(() -> Paiement.builder()
+                    .reservation(reservationRepository.findById(reservationId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable")))
+                    .montant(reservationRepository.findById(reservationId)
+                        .map(r -> r.getMontant().doubleValue())
+                        .orElse(0.0))
+                    .statut("EN_ATTENTE")
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            paiement.setStripePaymentIntentId(paymentIntentId);
+            paiement.setStatut("PAYE");
+            paiement.setLastStripeEventId(event.getId());
+            paiementRepository.save(paiement);
+            updateReservationStatusFromPayment(paiement);
+            }
+        }
+
         // Handle payment_intent events
         if (eventType != null && eventType.startsWith("payment_intent.")) {
             PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
                     .getObject()
                     .orElseThrow(() -> new RuntimeException("Impossible de parser PaymentIntent"));
 
-            paiementRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(paiement -> {
-                if (!event.getId().equals(paiement.getLastStripeEventId())) {
-                    syncStatusFromStripe(paiement, intent.getStatus());
-                    paiement.setLastStripeEventId(event.getId());
-                    paiementRepository.save(paiement);
-                }
-            });
+            Paiement paiement = paiementRepository.findByStripePaymentIntentId(intent.getId())
+                .orElseGet(() -> {
+                String reservationIdRaw = intent.getMetadata() != null ? intent.getMetadata().get("reservationId") : null;
+                if (reservationIdRaw == null) return null;
+                Integer reservationId = Integer.valueOf(reservationIdRaw);
+                return paiementRepository.findByReservationId(reservationId)
+                    .orElseGet(() -> Paiement.builder()
+                        .reservation(reservationRepository.findById(reservationId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable")))
+                        .montant(reservationRepository.findById(reservationId)
+                            .map(r -> r.getMontant().doubleValue())
+                            .orElse(0.0))
+                        .statut("EN_ATTENTE")
+                        .createdAt(LocalDateTime.now())
+                        .build());
+                });
+
+            if (paiement != null && !event.getId().equals(paiement.getLastStripeEventId())) {
+            paiement.setStripePaymentIntentId(intent.getId());
+            syncStatusFromStripe(paiement, intent.getStatus());
+            paiement.setLastStripeEventId(event.getId());
+            paiementRepository.save(paiement);
+            updateReservationStatusFromPayment(paiement);
+            }
         }
 
         // Handle charge.refunded events
@@ -238,6 +428,15 @@ public class PaiementService {
         }
 
         return Map.of("received", true, "type", eventType);
+    }
+
+    private void updateReservationStatusFromPayment(Paiement paiement) {
+        if (paiement.getReservation() == null) return;
+        Reservation reservation = paiement.getReservation();
+        if ("PAYE".equalsIgnoreCase(paiement.getStatut())) {
+            reservation.setStatut("PAYEE");
+            reservationRepository.save(reservation);
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────

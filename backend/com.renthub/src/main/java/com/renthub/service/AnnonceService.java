@@ -86,6 +86,7 @@ public class AnnonceService {
         Annonce annonce = Annonce.builder()
                 .titre(request.getTitre())
                 .description(request.getDescription())
+            .typeLogement(request.getType())
                 .prixNuit(request.getPrixNuit())
                 .adresse(request.getAdresse())
                 .latitude(request.getLatitude())
@@ -111,6 +112,7 @@ public class AnnonceService {
 
         annonce.setTitre(request.getTitre());
         annonce.setDescription(request.getDescription());
+        annonce.setTypeLogement(request.getType());
         annonce.setPrixNuit(request.getPrixNuit());
         annonce.setAdresse(request.getAdresse());
         if (request.getLatitude() != null) annonce.setLatitude(request.getLatitude());
@@ -165,6 +167,7 @@ public class AnnonceService {
         dto.setId(annonce.getId());
         dto.setTitre(annonce.getTitre());
         dto.setDescription(annonce.getDescription());
+        dto.setType(annonce.getTypeLogement());
         dto.setPrixNuit(annonce.getPrixNuit());
         dto.setAdresse(annonce.getAdresse());
         dto.setLatitude(annonce.getLatitude());
@@ -175,6 +178,7 @@ public class AnnonceService {
         if (annonce.getUser() != null) {
             dto.setUserId(annonce.getUser().getId());
             dto.setUserName(annonce.getUser().getNom());
+            dto.setUserPhotoUrl(annonce.getUser().getPhotoUrl());
         }
 
         if (annonce.getPhotos() != null && !annonce.getPhotos().isEmpty()) {

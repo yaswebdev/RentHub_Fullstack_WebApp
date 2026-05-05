@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS annonces (
     user_id INTEGER NOT NULL,
     titre VARCHAR(200) NOT NULL,
     description TEXT,
+    type_logement VARCHAR(50),
     prix_nuit DOUBLE PRECISION NOT NULL,
     adresse TEXT NOT NULL,
     latitude DOUBLE PRECISION,

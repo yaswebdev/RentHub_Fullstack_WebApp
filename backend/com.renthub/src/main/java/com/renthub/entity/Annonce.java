@@ -25,6 +25,9 @@ public class Annonce {
     @Column(nullable = false)
     private String description;
 
+    @Column(name = "type_logement")
+    private String typeLogement;
+
     @Column(name = "prix_nuit", nullable = false)
     private Double prixNuit;
 

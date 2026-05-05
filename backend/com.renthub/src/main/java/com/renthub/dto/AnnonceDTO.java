@@ -9,6 +9,7 @@ public class AnnonceDTO {
     private Integer id;
     private String titre;
     private String description;
+    private String type;
     private Double prixNuit;
     private String adresse;
     private Double latitude;
@@ -19,6 +20,7 @@ public class AnnonceDTO {
     // Host info (flattened — no need to expose the full User object)
     private Integer userId;
     private String userName;
+    private String userPhotoUrl;
 
     // Photo URLs
     private List<String> photoUrls;

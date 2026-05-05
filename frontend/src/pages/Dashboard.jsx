@@ -16,6 +16,7 @@ import { deconnexion } from '../api/authAPI';
 import { supprimerPropriete } from '../api/proprietesAPI';
 import { useToast } from '../context/ToastContext';
 import { cn, formatDate } from '../lib/utils';
+import { getProfilePhotoUrl } from '../utils/imageHelpers';
 import { API_BASE_URL } from '../constants/api';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -60,13 +61,18 @@ export const Dashboard = () => {
   const mesFavoris = proprietes.filter(p => favorites.includes(p.id));
 
   const normalizeStatus = (value) => (value || '').toString().toUpperCase();
+  const getDisplayStatus = (reservation) => (
+    normalizeStatus(reservation?.paymentStatus) === 'PAYE'
+      ? 'PAYEE'
+      : normalizeStatus(reservation?.status || reservation?.statut)
+  );
   const isActiveStatus = (value) => !['ANNULEE', 'REFUSEE', 'CANCELLED'].includes(normalizeStatus(value));
   const toStartOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const toDate = (value) => (value ? new Date(value) : null);
   const msPerDay = 24 * 60 * 60 * 1000;
 
   const hostReservationData = useMemo(
-    () => hostReservations.filter((r) => isActiveStatus(r.status || r.statut)),
+    () => hostReservations.filter((r) => isActiveStatus(getDisplayStatus(r))),
     [hostReservations]
   );
 
@@ -171,8 +177,8 @@ export const Dashboard = () => {
 
   const stats = {
     total:      reservations.length,
-    confirmées: reservations.filter((r) => ['confirmed', 'confirmé', 'CONFIRMEE', 'PAYEE'].includes(r.status || r.statut)).length,
-    enAttente:  reservations.filter((r) => ['pending', 'en_attente', 'EN_ATTENTE'].includes(r.status || r.statut)).length,
+    confirmées: reservations.filter((r) => ['CONFIRMEE', 'PAYEE'].includes(getDisplayStatus(r))).length,
+    enAttente:  reservations.filter((r) => ['PENDING', 'EN_ATTENTE'].includes(getDisplayStatus(r))).length,
     depenses:   reservations.reduce((acc, r) => acc + (r.totalPrice || r.prixTotal || 0), 0),
   };
 
@@ -184,7 +190,7 @@ export const Dashboard = () => {
           <div className="flex items-center gap-5">
             <div className="relative">
               <img
-                src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=6366f1&color=fff&size=80`}
+                src={getProfilePhotoUrl(user?.photoURL) || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'U')}&background=6366f1&color=fff&size=80`}
                 alt={user?.displayName}
                 className="h-16 w-16 rounded-2xl object-cover border-2 border-white dark:border-slate-800 shadow-lg"
                 referrerPolicy="no-referrer"
@@ -241,6 +247,16 @@ export const Dashboard = () => {
                 </Button>
               </Link>
             )}
+            <Link to="/profile">
+              <Button variant="outline" size="sm" className="mr-2">
+                <Settings className="h-4 w-4 mr-2" /> Mon profil
+              </Button>
+            </Link>
+            <Link to="/chat">
+              <Button variant="outline" size="sm" className="mr-2">
+                <MessageSquare className="h-4 w-4 mr-2" /> Messages
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleDeconnexion} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
               <LogOut className="h-4 w-4 mr-2" /> Déconnexion
             </Button>
@@ -256,13 +272,19 @@ export const Dashboard = () => {
               { titre: 'En attente',      valeur: stats.enAttente,               couleur: 'from-amber-500 to-orange-500',   icone: AlertCircle   },
               { titre: 'Total dépensé',   valeur: `${stats.depenses.toLocaleString('fr-MA')} DH`, couleur: 'from-sky-500 to-blue-500', icone: Star },
             ].map((s, i) => (
-              <Card key={i} className="overflow-hidden border-none shadow-sm dark:bg-slate-900">
-                <CardContent className="p-5">
-                  <div className={cn('inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br text-white mb-3', s.couleur)}>
+              <Card key={i} className="relative overflow-hidden border border-slate-100/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur shadow-sm">
+                <div className={cn('absolute -right-12 -top-12 h-28 w-28 rounded-full opacity-20 bg-gradient-to-br', s.couleur)} />
+                <CardContent className="p-5 relative">
+                  <div className={cn('inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br text-white mb-3 shadow-sm mt-2', s.couleur)}>
                     <s.icone className="h-5 w-5" />
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">{s.titre}</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{s.valeur}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold mb-1">
+                    {s.titre}
+                  </p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">{s.valeur}</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className={cn('h-full rounded-full bg-gradient-to-r', s.couleur)} style={{ width: '65%' }} />
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -404,15 +426,16 @@ export const Dashboard = () => {
               </Card>
             ) : (
               reservations.map((r) => {
-                const statut = STATUT_CONFIG[r.status] || STATUT_CONFIG[r.statut] || STATUT_CONFIG.pending;
+                const statusKey = getDisplayStatus(r);
+                const statut = STATUT_CONFIG[statusKey] || STATUT_CONFIG[r.status] || STATUT_CONFIG[r.statut] || STATUT_CONFIG.pending;
                 const Icone  = statut.icone;
                 const dateDebut = r.startDate || r.dateDebut;
                 const dateFin = r.endDate || r.dateFin;
                 const nights = dateDebut && dateFin
                   ? Math.max(1, Math.ceil((new Date(dateFin) - new Date(dateDebut)) / (1000 * 60 * 60 * 24)))
                   : (r.nights || r.nombreNuits || '—');
-                const canCancel = ['confirmed', 'confirmé', 'pending', 'en_attente', 'EN_ATTENTE', 'CONFIRMEE', 'PAYEE']
-                  .includes(r.status || r.statut);
+                const canCancel = ['EN_ATTENTE', 'CONFIRMEE', 'PAYEE']
+                  .includes(statusKey);
                 return (
                   <Card key={r.id} className="overflow-hidden hover:shadow-md transition-shadow dark:bg-slate-900">
                     <CardContent className="p-0">

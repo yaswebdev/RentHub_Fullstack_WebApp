@@ -9,11 +9,12 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useProprietes } from '../hooks/useProprietes';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { CardSkeleton } from '../components/Skeleton';
 import { DestinationAutocomplete } from '../components/DestinationAutocomplete';
 
-const VILLES = ['Marrakech', 'Casablanca', 'Agadir', 'Tanger', 'Fès', 'Essaouira'];
+const VILLES = ['Marrakech', 'Casablanca', 'Agadir', 'Tanger', 'Fès', 'Essaouira', 'Rabat'];
 
 const AVANTAGES = [
   { icone: <Shield className="h-6 w-6" />,    titre: 'Réservation sécurisée',    desc: 'Paiements protégés à chaque réservation.' },
@@ -63,6 +64,7 @@ export const Home = () => {
   const [recherche, setRecherche] = useState('');
   const [categorieActive, setCategorieActive] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { proprietes, chargement } = useProprietes({}, 6);
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activePanel, setActivePanel] = useState(null);
@@ -71,6 +73,8 @@ export const Home = () => {
   const [guests, setGuests] = useState({ adults: 0, children: 0, babies: 0, pets: 0 });
   const panelRef = useRef(null);
   const triggerRef = useRef(null);
+  const roleValue = user?.role?.toUpperCase?.();
+  const isHost = ['HOTE', 'ADMIN'].includes(roleValue);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -300,7 +304,18 @@ export const Home = () => {
                 transition={{ delay: i * 0.08 }}
                 whileHover={{ y: -6, scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => { setCategorieActive(cat.id === categorieActive ? null : cat.id); navigate(`/search?type=${cat.id}`); }}
+                onClick={() => {
+                  const typeLabelMap = {
+                    riad: 'Riad',
+                    villa: 'Villa',
+                    appartement: 'Appartement',
+                    studio: 'Studio',
+                    dar: 'Dar',
+                  };
+                  const typeLabel = typeLabelMap[cat.id] || cat.label?.replace(/s$/i, '') || cat.label;
+                  setCategorieActive(cat.id === categorieActive ? null : cat.id);
+                  navigate(`/search?type=${encodeURIComponent(typeLabel)}`);
+                }}
                 className={cn(
                   'group flex flex-col items-center gap-4 px-6 py-7 rounded-3xl border transition-all duration-300 shadow-sm hover:shadow-xl min-w-[150px] w-40 text-center bg-white border-slate-200'
                 )}
@@ -425,9 +440,10 @@ export const Home = () => {
       </section>
 
       {/* ── Avantages ─────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-amber-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 transition-colors border-y border-slate-100 dark:border-slate-800">
+      <section className="py-20 bg-[radial-gradient(circle_at_top,#fff7ed,transparent_55%),radial-gradient(circle_at_bottom,#ffe4e6,transparent_60%)] dark:bg-[radial-gradient(circle_at_top,#0f172a,transparent_55%),radial-gradient(circle_at_bottom,#111827,transparent_60%)] transition-colors border-y border-slate-100 dark:border-slate-800">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-3">RentHub Maroc</p>
             <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 dark:text-white mb-3">
               Pourquoi choisir RentHub ?
             </h2>
@@ -442,10 +458,11 @@ export const Home = () => {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="text-center p-8 bg-white rounded-3xl shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                transition={{ delay: i * 0.12 }}
+                className="relative overflow-hidden p-8 bg-white rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 mb-6">
+                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100/60" />
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-900 text-amber-200 mb-6 shadow-sm">
                   {a.icone}
                 </div>
                 <h3 className="font-bold text-slate-900 text-lg mb-2">{a.titre}</h3>
@@ -457,29 +474,60 @@ export const Home = () => {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-primary-600 to-amber-500 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl" />
+      <section className="py-20 bg-[linear-gradient(120deg,#fb7185_0%,#f97316_50%,#f59e0b_100%)] relative overflow-hidden">
+        <div className="absolute inset-0 opacity-25">
+          <div className="absolute -top-16 left-8 w-80 h-80 bg-white rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 right-12 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">
-            Prêt à partir en voyage ?
-          </h2>
-          <p className="text-white/80 text-lg mb-10 max-w-lg mx-auto">
-            Rejoignez des milliers de voyageurs qui font confiance à RentHub pour leurs séjours au Maroc.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/search">
-              <Button size="lg" variant="secondary" className="shadow-2xl">
-                Trouver un hébergement <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button size="lg" className="bg-white/20 hover:bg-white/30 text-white border border-white/30 shadow-xl">
-                Devenir hôte
-              </Button>
-            </Link>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80 mb-4">Prêt pour le Maroc</p>
+              <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-5">
+                Prêt à partir en voyage ?
+              </h2>
+              <p className="text-white/85 text-lg mb-8 max-w-xl">
+                Rejoignez des milliers de voyageurs qui font confiance à RentHub pour leurs séjours au Maroc.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <Link to="/search">
+                  <Button size="lg" variant="secondary" className="shadow-2xl">
+                    Trouver un hébergement <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+                {!isHost && (
+                  <Link to="/register">
+                    <Button size="lg" className="bg-white/15 hover:bg-white/25 text-white border border-white/30 shadow-xl">
+                      Devenir hôte
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              <div className="mt-8 flex flex-wrap gap-3 text-xs text-white/80">
+                <span className="px-3 py-1 rounded-full bg-white/15 border border-white/25">Support local 7j/7</span>
+                <span className="px-3 py-1 rounded-full bg-white/15 border border-white/25">Paiement sécurisé</span>
+                <span className="px-3 py-1 rounded-full bg-white/15 border border-white/25">Hôtes vérifiés</span>
+              </div>
+            </div>
+            <div className="hidden lg:block">
+              <div className="bg-white/15 border border-white/30 rounded-[32px] p-8 text-white shadow-2xl">
+                <p className="text-sm uppercase tracking-[0.2em] text-white/70 mb-3">RentHub</p>
+                <p className="text-2xl font-bold mb-4">Votre prochain séjour commence ici.</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  Des logements uniques, des hôtes de confiance, et un support local pour des voyages sans stress.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-4 text-xs text-white/80">
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-lg font-bold text-white">+1k</p>
+                    <p>Logements actifs</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-lg font-bold text-white">98%</p>
+                    <p>Satisfaction</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

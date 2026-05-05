@@ -14,13 +14,14 @@ import DatePicker from 'react-datepicker';
 import { addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn, getLocationString, calculerNuits } from '../lib/utils';
+import { getProfilePhotoUrl } from '../utils/imageHelpers';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { usePropriete } from '../hooks/useProprietes';
 import { creerChat } from '../api/chatAPI';
 import { fetchMesReservations } from '../api/reservationsAPI';
-import { fetchAvisByAnnonce } from '../api/avisAPI';
+import { fetchAvisByAnnonce, creerAvis } from '../api/avisAPI';
 import { API_BASE_URL } from '../constants/api';
 import { getDocs, query, where, collection, db } from '../firebase';
 
@@ -56,6 +57,10 @@ export const PropertyDetails = () => {
   const [nouveauAvis, setNouveauAvis] = useState('');
   const [nouvelleNote, setNouvelleNote] = useState(5);
   const [avisSoumis, setAvisSoumis] = useState(false);
+  const [reservationEligible, setReservationEligible] = useState(null);
+  const [avisEnvoi, setAvisEnvoi] = useState(false);
+  const [eligibiliteMessage, setEligibiliteMessage] = useState('');
+  const WORD_LIMIT = 80;
   const roleValue = user?.role?.toUpperCase?.();
   const effectiveRole = roleValue || (API_BASE_URL ? null : 'LOCATAIRE');
   const isLocataire = ['LOCATAIRE', 'ADMIN'].includes(effectiveRole);
@@ -76,6 +81,127 @@ export const PropertyDetails = () => {
       setLocalReviews(property.reviews);
     }
   }, [property?.id, property?.reviews]);
+
+  // Vérifier si l'utilisateur peut laisser un avis (réservation confirmée/terminée)
+  useEffect(() => {
+    if (!user || !property?.id) {
+      setReservationEligible(null);
+      setEligibiliteMessage('');
+      return;
+    }
+
+    fetchMesReservations(user.id)
+      .then((data) => {
+        const reservations = Array.isArray(data) ? data : [];
+        const related = reservations.filter((r) => (r.annonceId || r.propertyId) === property.id);
+        const eligible = related
+          .filter((r) => {
+            const statut = (r.statut || r.status || '').toString().toUpperCase();
+            return ['CONFIRMEE', 'TERMINEE', 'PAYEE'].includes(statut);
+          })
+          .find((r) => !localReviews.some((a) => a.reservationId === r.id));
+
+        if (eligible) {
+          setReservationEligible(eligible);
+          setEligibiliteMessage('');
+          return;
+        }
+
+        if (related.length === 0) {
+          setReservationEligible(null);
+          setEligibiliteMessage('Vous devez réserver ce logement pour laisser un avis.');
+          return;
+        }
+
+        const hasPending = related.some((r) => {
+          const statut = (r.statut || r.status || '').toString().toUpperCase();
+          return !['CONFIRMEE', 'TERMINEE', 'PAYEE'].includes(statut);
+        });
+
+        if (hasPending) {
+          setReservationEligible(null);
+          setEligibiliteMessage('Votre réservation doit être confirmée ou terminée pour laisser un avis.');
+          return;
+        }
+
+        setReservationEligible(null);
+        setEligibiliteMessage('Vous avez déjà laissé un avis pour cette réservation.');
+      })
+      .catch(() => {
+        setReservationEligible(null);
+        setEligibiliteMessage('');
+      });
+  }, [user, property?.id, localReviews]);
+
+  const countWords = (value) => {
+    if (!value) return 0;
+    return value.trim().split(/\s+/).filter(Boolean).length;
+  };
+
+  const formatReviewDate = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const handleSubmitAvis = async (e) => {
+    e.preventDefault();
+    if (!user) { navigate('/login'); return; }
+    if (!reservationEligible) {
+      setEligibiliteMessage('Seuls les voyageurs ayant réservé ce logement peuvent laisser un avis.');
+      return;
+    }
+
+    const words = countWords(nouveauAvis);
+    if (words === 0) {
+      toast('Veuillez écrire un commentaire.', 'error');
+      return;
+    }
+    if (words > WORD_LIMIT) {
+      toast(`Limite de ${WORD_LIMIT} mots dépassée.`, 'error');
+      return;
+    }
+
+    setAvisEnvoi(true);
+    try {
+      if (API_BASE_URL) {
+        const created = await creerAvis(property.id, reservationEligible.id, nouvelleNote, nouveauAvis.trim());
+        setLocalReviews((prev) => [created, ...prev]);
+      } else {
+        const mockAvis = {
+          id: `local-${Date.now()}`,
+          rating: nouvelleNote,
+          comment: nouveauAvis.trim(),
+          date: new Date().toISOString(),
+          userName: user?.displayName || user?.nom || 'Locataire',
+          userPhoto: user?.photoURL || null,
+          reservationId: reservationEligible.id,
+          annonceId: property.id,
+        };
+        setLocalReviews((prev) => [mockAvis, ...prev]);
+      }
+
+      setNouveauAvis('');
+      setNouvelleNote(5);
+      setAvisSoumis(true);
+      toast('Merci pour votre avis !', 'success');
+    } catch (err) {
+      const status = err?.response?.status;
+      const message = err?.response?.data?.message || err?.response?.data?.error;
+      if (status === 422 || status === 403) {
+        setEligibiliteMessage(message || 'Seuls les voyageurs ayant réservé ce logement peuvent laisser un avis.');
+        return;
+      }
+      toast(message || err.message || "Impossible d'envoyer l'avis.", 'error');
+    } finally {
+      setAvisEnvoi(false);
+    }
+  };
 
   const handleContacterHote = async () => {
     if (!user) { navigate('/login'); return; }
@@ -161,8 +287,16 @@ export const PropertyDetails = () => {
     : (property.rating || 0);
 
   // Calcul dynamique du prix
+  const toLocalDateParam = (date) => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const nuits = dateDepart && dateArrivee
-    ? calculerNuits(dateDepart.toISOString(), dateArrivee.toISOString())
+    ? calculerNuits(toLocalDateParam(dateDepart), toLocalDateParam(dateArrivee))
     : 0;
   const sousTotal = prixNuit * nuits;
   const fraisMenage = 200;
@@ -182,7 +316,7 @@ export const PropertyDetails = () => {
         {/* En-tête : Titre et Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white mb-2 mt-4">
               {property?.title}
             </h1>
             <Link to="/search" className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 transition-colors">
@@ -218,6 +352,12 @@ export const PropertyDetails = () => {
               <MapPin className="h-4 w-4 mr-1" />
               <span>{localisation}, Maroc</span>
             </div>
+            {property?.type && (
+              <div className="flex items-center text-slate-500 dark:text-slate-400">
+                <HomeIcon className="h-4 w-4 mr-1" />
+                <span>{property.type}</span>
+              </div>
+            )}
             {property.isSuperhost && (
               <div className="flex items-center text-primary-600 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded text-xs">
                 <Shield className="h-3 w-3 mr-1" /> Super Hôte
@@ -227,38 +367,49 @@ export const PropertyDetails = () => {
         </div>
 
         {/* Galerie photos */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 h-[400px] md:h-[500px]">
-          <div 
-            className="md:col-span-2 h-full rounded-2xl overflow-hidden cursor-pointer relative group"
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div
+            className="md:col-span-2 aspect-[16/10] rounded-2xl overflow-hidden cursor-pointer relative group bg-slate-100"
             onClick={() => { setPhotoIndex(0); setLightboxOpen(true); }}
           >
-            <img src={images[0]} alt="Photo principale" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+            <img src={images[0]} alt="Photo principale" className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           </div>
-          <div className="hidden md:grid grid-cols-2 col-span-2 gap-4 h-full">
-            {images.slice(1, 5).map((img, i) => (
-              <div 
-                key={i} 
-                className="rounded-2xl overflow-hidden h-full cursor-pointer relative group"
-                onClick={() => { setPhotoIndex(i + 1); setLightboxOpen(true); }}
-              >
-                <img src={img} alt={`Photo ${i + 2}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-              </div>
-            ))}
-            {images.length < 5 &&
-              Array.from({ length: 4 - Math.max(0, images.length - 1) }).map((_, i) => (
-                <div key={`ph-${i}`} className="rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center h-full">
-                  <HomeIcon className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+
+          <div className="hidden md:block md:col-span-2">
+            <div className="relative grid grid-cols-2 grid-rows-2 gap-4 aspect-[16/10]">
+              {images.slice(1, 5).map((img, i) => (
+                <div
+                  key={i}
+                  className="h-full rounded-2xl overflow-hidden cursor-pointer relative group bg-slate-100"
+                  onClick={() => { setPhotoIndex(i + 1); setLightboxOpen(true); }}
+                >
+                  <img src={img} alt={`Photo ${i + 2}`} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                 </div>
               ))}
+              {images.length < 5 &&
+                Array.from({ length: 4 - Math.max(0, images.length - 1) }).map((_, i) => (
+                  <div key={`ph-${i}`} className="rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center h-full">
+                    <HomeIcon className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                  </div>
+                ))}
+
+              <button
+                type="button"
+                onClick={() => { setPhotoIndex(0); setLightboxOpen(true); }}
+                className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-bold text-slate-900 shadow-md border border-slate-200"
+              >
+                Afficher toutes les photos
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Bouton toutes les photos (mobile only ou extra) */}
+        {/* Bouton toutes les photos (mobile) */}
         <div className="flex justify-end mb-8 md:hidden">
           <Button variant="outline" size="sm" onClick={() => { setPhotoIndex(0); setLightboxOpen(true); }}>
-            Voir toutes les photos
+            Afficher toutes les photos
           </Button>
         </div>
 
@@ -288,7 +439,7 @@ export const PropertyDetails = () => {
               </div>
               <div className="relative shrink-0">
                 <img
-                  src={property?.hostPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(property?.hostName || 'Hote')}&background=6366f1&color=fff`}
+                  src={getProfilePhotoUrl(property?.hostPhoto) || `https://ui-avatars.com/api/?name=${encodeURIComponent(property?.hostName || 'Hote')}&background=6366f1&color=fff`}
                   alt={property?.hostName}
                   className="h-14 w-14 rounded-2xl object-cover border-2 border-white dark:border-slate-800 shadow-md"
                   referrerPolicy="no-referrer"
@@ -331,23 +482,93 @@ export const PropertyDetails = () => {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {isLocataire && (
+                <div className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                  {!reservationEligible && (
+                    <div className="mb-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
+                      Seuls les voyageurs avec une réservation confirmée, payée ou terminée peuvent laisser un avis.
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">Laisser un avis</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Réservé aux voyageurs ayant une réservation confirmée ou terminée.
+                      </p>
+                    </div>
+                    {avisSoumis && (
+                      <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                        Avis envoyé
+                      </span>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleSubmitAvis} className="space-y-4">
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          className="p-1"
+                          onClick={() => setNouvelleNote(n)}
+                          aria-label={`Noter ${n} étoile${n > 1 ? 's' : ''}`}
+                        >
+                          <Star className={cn('h-6 w-6', n <= nouvelleNote ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300')} />
+                        </button>
+                      ))}
+                    </div>
+
+                    <div>
+                      <textarea
+                        rows="4"
+                        value={nouveauAvis}
+                        onChange={(e) => setNouveauAvis(e.target.value)}
+                        placeholder="Partagez votre expérience..."
+                        className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                        <span>Limite : {WORD_LIMIT} mots</span>
+                        <span>{countWords(nouveauAvis)} / {WORD_LIMIT}</span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={!reservationEligible || avisEnvoi}
+                      className="rounded-2xl"
+                    >
+                      {reservationEligible ? 'Publier mon avis' : 'Réservation requise'}
+                    </Button>
+                    {eligibiliteMessage && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {eligibiliteMessage}
+                      </p>
+                    )}
+                  </form>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {localReviews.map((avis) => (
-                  <div key={avis.id} className="space-y-3">
-                    <div className="flex items-center gap-3">
+                  <div key={avis.id} className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
                       <img
                         src={avis.userPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(avis.userName || 'U')}&background=6366f1&color=fff`}
-                        className="h-12 w-12 rounded-full object-cover"
+                        className="h-12 w-12 rounded-2xl object-cover"
                         alt=""
                         referrerPolicy="no-referrer"
                       />
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{avis.userName}</p>
-                        <p className="text-xs text-slate-500">{avis.date}</p>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-900 dark:text-white leading-tight">{avis.userName}</p>
+                        <p className="text-xs text-slate-500">{formatReviewDate(avis.date) || avis.date}</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
+                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                        {avis.rating || 5}
                       </div>
                     </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                      "{avis.comment}"
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                      “{avis.comment}”
                     </p>
                   </div>
                 ))}
@@ -377,7 +598,7 @@ export const PropertyDetails = () => {
             <div className="sticky top-24 space-y-6">
               <Card className="shadow-2xl border-none overflow-hidden dark:bg-slate-900">
                 <CardContent className="p-6">
-                  <div className="flex items-end justify-between mb-6">
+                  <div className="flex items-end justify-between mb-6 mt-4">
                     <div>
                       <span className="text-2xl font-black text-slate-900 dark:text-white">{prixNuit} DH</span>
                       <span className="text-slate-500 dark:text-slate-400"> / nuit</span>
@@ -439,7 +660,7 @@ export const PropertyDetails = () => {
                   </div>
 
                   {canBook ? (
-                    <Link to={`/booking/${property?.id}?start=${dateDepart?.toISOString()}&end=${dateArrivee?.toISOString()}&guests=${voyageurs}`}>
+                    <Link to={`/booking/${property?.id}?start=${toLocalDateParam(dateDepart)}&end=${toLocalDateParam(dateArrivee)}&guests=${voyageurs}`}>
                       <Button
                         size="lg"
                         className="w-full rounded-2xl mb-4"

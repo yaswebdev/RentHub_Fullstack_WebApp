@@ -26,8 +26,9 @@ export const Search = () => {
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [panneauFiltres, setPanneauFiltres] = useState(false);
-  const [typeSelectionne, setTypeSelectionne] = useState([]);
-  const [villeSelectionnee, setVilleSelectionnee] = useState(searchParams.get('type') || '');
+  const initialType = searchParams.get('type');
+  const [typeSelectionne, setTypeSelectionne] = useState(initialType ? [initialType] : []);
+  const [villeSelectionnee, setVilleSelectionnee] = useState('');
   const [prixMin, setPrixMin] = useState('');
   const [prixMax, setPrixMax] = useState('');
   const [voyageurs, setVoyageurs] = useState('');
@@ -53,7 +54,8 @@ export const Search = () => {
     }
 
     if (typeSelectionne.length > 0) {
-      liste = liste.filter((p) => typeSelectionne.includes(p.type));
+      const normalizedTypes = typeSelectionne.map((t) => t.toLowerCase());
+      liste = liste.filter((p) => normalizedTypes.includes((p.type || '').toLowerCase()));
     }
 
     if (villeSelectionnee) {

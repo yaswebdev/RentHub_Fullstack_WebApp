@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Star, Shield, CreditCard, ChevronLeft, Calendar as CalendarIcon, Users } from 'lucide-react';
-import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { Star, Shield, CreditCard, ChevronLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { Input } from '../components/Input';
@@ -12,30 +10,14 @@ import { useReservations } from '../hooks/useReservations';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency, calculerNuits } from '../lib/utils';
 import { API_BASE_URL } from '../constants/api';
-import { createPaymentIntent, confirmPaymentIntent } from '../api/paiementAPI';
+import { createCheckoutSession } from '../api/paiementAPI';
 
-const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
-const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
-
-const CARD_ELEMENT_OPTIONS = {
-  style: {
-    base: {
-      fontSize: '14px',
-      color: '#0f172a',
-      '::placeholder': { color: '#94a3b8' },
-    },
-    invalid: { color: '#dc2626' },
-  },
-};
-
-const BookingInner = () => {
+export const Booking = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const stripe = useStripe();
-  const elements = useElements();
 
   const prefill = location.state || {};
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -66,9 +48,7 @@ const BookingInner = () => {
   );
   const [chargement, setChargement] = useState(false);
   const [methodePaiement, setMethodePaiement] = useState('sur_place');
-  const [erreurCarte, setErreurCarte] = useState(null);
-
-  const stripeReady = Boolean(API_BASE_URL && stripePromise);
+  const checkoutEnabled = Boolean(API_BASE_URL);
 
   const nuits = calculerNuits(dateDebut, dateFin);
   const prixNuit = property?.pricePerNight || property?.prixParNuit || 0;
@@ -85,7 +65,6 @@ const BookingInner = () => {
     }
 
     setChargement(true);
-    setErreurCarte(null);
     try {
       const reservation = await creer({
         proprieteId: property.id,
@@ -109,27 +88,16 @@ const BookingInner = () => {
       });
 
       if (API_BASE_URL && methodePaiement === 'carte') {
-        if (!stripe || !elements) {
-          throw new Error('Stripe n\'est pas prêt. Vérifiez la clé publique.');
+        const successUrl = `${window.location.origin}/payment/success?reservationId=${reservation.id}&session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = `${window.location.origin}/payment/cancel?reservationId=${reservation.id}`;
+        const session = await createCheckoutSession(reservation.id, successUrl, cancelUrl);
+
+        if (session?.url) {
+          window.location.href = session.url;
+          return;
         }
 
-        const cardElement = elements.getElement(CardElement);
-        if (!cardElement) {
-          throw new Error('Impossible de lire le formulaire de carte.');
-        }
-
-        const intent = await createPaymentIntent(reservation.id);
-        const paymentMethodResult = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-        });
-
-        if (paymentMethodResult.error) {
-          setErreurCarte(paymentMethodResult.error.message);
-          throw new Error(paymentMethodResult.error.message);
-        }
-
-        await confirmPaymentIntent(intent.paymentIntentId, paymentMethodResult.paymentMethod.id);
+        throw new Error('Impossible de démarrer le paiement Stripe.');
       }
 
       toast('Réservation confirmée avec succès ! 🎉', 'success');
@@ -253,31 +221,19 @@ const BookingInner = () => {
                       checked={methodePaiement === 'carte'}
                       onChange={() => setMethodePaiement('carte')}
                       className="mt-1"
-                      disabled={!stripeReady}
+                      disabled={!checkoutEnabled}
                     />
                     <div className="ml-3">
                       <span className="block font-semibold text-slate-900 flex items-center gap-2">
                         Carte bancaire <CreditCard className="h-4 w-4" />
                       </span>
                       <span className="block text-sm text-slate-500 mt-1">
-                        {stripeReady
-                          ? 'Paiement sécurisé via Stripe.'
-                          : 'Ajoutez VITE_STRIPE_PUBLIC_KEY pour activer.'}
+                        {checkoutEnabled
+                          ? 'Redirection sécurisée vers Stripe Checkout.'
+                          : 'Le paiement en ligne est indisponible pour le moment.'}
                       </span>
                     </div>
                   </label>
-                )}
-
-                {API_BASE_URL && methodePaiement === 'carte' && (
-                  <div className="p-4 border border-slate-200 rounded-2xl bg-white">
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">Carte bancaire</label>
-                    <div className="p-3 border border-slate-200 rounded-xl">
-                      <CardElement options={CARD_ELEMENT_OPTIONS} />
-                    </div>
-                    {erreurCarte && (
-                      <p className="text-sm text-red-600 mt-2">{erreurCarte}</p>
-                    )}
-                  </div>
                 )}
               </div>
             </section>
@@ -378,16 +334,4 @@ const BookingInner = () => {
       </div>
     </div>
   );
-};
-
-export const Booking = () => {
-  if (stripePromise) {
-    return (
-      <Elements stripe={stripePromise}>
-        <BookingInner />
-      </Elements>
-    );
-  }
-
-  return <BookingInner />;
 };

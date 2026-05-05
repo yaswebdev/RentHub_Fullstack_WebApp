@@ -20,9 +20,10 @@ export const Chat = () => {
   const { user } = useAuth();
   const messagesFin = useRef(null);
   const currentUserId = user?.id || user?.uid;
+  const normalizeChatId = (value) => (value == null ? null : String(value));
 
   const [chats, setChats] = useState([]);
-  const [chatActif, setChatActif] = useState(chatId || null);
+  const [chatActif, setChatActif] = useState(normalizeChatId(chatId));
   const [messages, setMessages] = useState([]);
   const [texte, setTexte] = useState('');
   const [chargementChats, setChargementChats] = useState(true);
@@ -52,10 +53,9 @@ export const Chat = () => {
     return desabonner;
   }, [chatActif]);
 
-  // Défilement automatique vers le bas
-  useEffect(() => {
+  const scrollToBottom = () => {
     messagesFin.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  };
 
   const handleEnvoyer = async (e) => {
     e.preventDefault();
@@ -65,6 +65,7 @@ export const Chat = () => {
     try {
       await envoyerMessage(chatActif, userMsg, currentUserId);
       setTexte('');
+      scrollToBottom();
       if (!API_BASE_URL) {
         // Simulation d'une réponse de l'hôte après 2 secondes (mode dev)
         setTimeout(async () => {
@@ -94,7 +95,7 @@ export const Chat = () => {
     return titre.toLowerCase().includes(recherche.toLowerCase());
   });
 
-  const chatActifData = chats.find((c) => c.id === chatActif);
+  const chatActifData = chats.find((c) => normalizeChatId(c.id) === chatActif);
   const autrePseudo = chatActifData?.otherUserName
     || (chatActifData?.participantDetails
       ? Object.entries(chatActifData.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.name
@@ -142,7 +143,7 @@ export const Chat = () => {
               const photoAutre = chat.participantDetails
                 ? Object.entries(chat.participantDetails).find(([id]) => id !== user?.uid)?.[1]?.photo
                 : null;
-              const estSelectionné = chatActif === chat.id;
+              const estSelectionné = chatActif === normalizeChatId(chat.id);
               
               return (
                 <button
@@ -153,7 +154,11 @@ export const Chat = () => {
                       ? 'bg-primary-50 dark:bg-primary-900/20' 
                       : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   )}
-                  onClick={() => { setChatActif(chat.id); navigate(`/chat/${chat.id}`); }}
+                  onClick={() => {
+                    const nextId = normalizeChatId(chat.id);
+                    setChatActif(nextId);
+                    navigate(`/chat/${nextId}`);
+                  }}
                 >
                   {estSelectionné && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-600 rounded-r-full" />}
                   <div className="relative shrink-0">
@@ -211,11 +216,6 @@ export const Chat = () => {
               </div>
             </div>
             
-            <div className="hidden sm:flex items-center gap-2">
-               <div className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                 ID: {chatActif.substring(0, 8)}
-               </div>
-            </div>
           </div>
 
           {/* Messages */}
@@ -275,11 +275,11 @@ export const Chat = () => {
 
           {/* Zone de saisie */}
           <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-            <form onSubmit={handleEnvoyer} className="max-w-4xl mx-auto flex items-center gap-3 bg-slate-100 dark:bg-slate-800 rounded-3xl p-1.5 pl-5 border border-slate-200 dark:border-slate-700 shadow-inner group focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+            <form onSubmit={handleEnvoyer} className="max-w-4xl mx-auto flex items-center gap-3 bg-slate-100 dark:bg-slate-800 rounded-3xl p-1.5 pl-5 group transition-all">
               <input
                 type="text"
                 placeholder="Écrire à votre hôte..."
-                className="flex-1 bg-transparent border-none py-3 text-sm text-slate-800 dark:text-white focus:outline-none placeholder:text-slate-400 font-medium"
+                className="flex-1 bg-transparent border-none py-3 text-sm text-slate-800 dark:text-white focus:outline-none outline-none ring-0 placeholder:text-slate-400 font-medium"
                 value={texte}
                 onChange={(e) => setTexte(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEnvoyer(e); }}}

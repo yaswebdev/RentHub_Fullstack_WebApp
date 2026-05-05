@@ -20,4 +20,5 @@ public class AvisDTO {
     // Reviewer info (flattened)
     private Integer locataireId;
     private String locataireNom;
+    private String locatairePhotoUrl;
 }

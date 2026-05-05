@@ -166,6 +166,7 @@ public class ReservationService {
 
     private ReservationDTO toDTO(Reservation reservation) {
         ReservationDTO dto = new ReservationDTO();
+        Paiement paiement = paiementRepository.findByReservationId(reservation.getId()).orElse(null);
         dto.setId(reservation.getId());
         dto.setAnnonceId(reservation.getAnnonce().getId());
         dto.setAnnonceTitre(reservation.getAnnonce().getTitre());
@@ -177,6 +178,7 @@ public class ReservationService {
         dto.setMontant(reservation.getMontant());
         dto.setCreatedAt(reservation.getCreatedAt());
         dto.setCancellationReason(reservation.getCancellationReason());
+        dto.setPaymentStatus(paiement != null ? paiement.getStatut() : null);
         return dto;
     }
 

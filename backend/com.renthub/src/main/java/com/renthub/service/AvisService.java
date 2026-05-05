@@ -6,6 +6,7 @@ import com.renthub.entity.Avis;
 import com.renthub.entity.Reservation;
 import com.renthub.entity.User;
 import com.renthub.repository.AvisRepository;
+import com.renthub.repository.PaiementRepository;
 import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
 import com.renthub.exception.BusinessRuleException;
@@ -27,6 +28,7 @@ public class AvisService {
     private final AvisRepository avisRepository;
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
+    private final PaiementRepository paiementRepository;
 
     /**
      * Create a review for a completed reservation.
@@ -48,10 +50,18 @@ public class AvisService {
             throw new AccessDeniedException("Seul le locataire de cette réservation peut laisser un avis");
         }
 
-        // Reservation must be confirmed or completed
+        // Reservation must be paid, confirmed, or completed
         String statut = reservation.getStatut();
-        if (!"CONFIRMEE".equals(statut) && !"TERMINEE".equals(statut)) {
-            throw new BusinessRuleException("Vous ne pouvez laisser un avis que pour une réservation confirmée ou terminée");
+        boolean isEligibleStatut = "CONFIRMEE".equals(statut)
+            || "TERMINEE".equals(statut)
+            || "PAYEE".equals(statut);
+
+        boolean hasPaidPayment = paiementRepository.findByReservationId(reservation.getId())
+            .map(paiement -> "PAYE".equalsIgnoreCase(paiement.getStatut()))
+            .orElse(false);
+
+        if (!isEligibleStatut && !hasPaidPayment) {
+            throw new BusinessRuleException("Vous ne pouvez laisser un avis que pour une réservation confirmée, payée ou terminée");
         }
 
         // One review per reservation
@@ -141,6 +151,7 @@ public class AvisService {
         // Flatten reviewer info
         dto.setLocataireId(avis.getReservation().getLocataire().getId());
         dto.setLocataireNom(avis.getReservation().getLocataire().getNom());
+        dto.setLocatairePhotoUrl(avis.getReservation().getLocataire().getPhotoUrl());
 
         return dto;
     }

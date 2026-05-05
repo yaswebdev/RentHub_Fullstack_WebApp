@@ -14,6 +14,9 @@ public class AnnonceRequest {
     @NotBlank(message = "La description est obligatoire")
     private String description;
 
+    @NotBlank(message = "Le type de logement est obligatoire")
+    private String type;
+
     @NotNull(message = "Le prix par nuit est obligatoire")
     @Positive(message = "Le prix doit être positif")
     private Double prixNuit;
