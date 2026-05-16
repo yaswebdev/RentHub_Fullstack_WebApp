@@ -42,6 +42,29 @@ public class Annonce {
     @Column(nullable = false)
     private boolean disponibilite = true;
 
+    // ── Host listing attributes ─────────────────────────────
+    @Builder.Default
+    @Column(name = "max_guests")
+    private Integer maxGuests = 2;
+
+    @Builder.Default
+    private Integer bedrooms = 1;
+
+    @Builder.Default
+    private Integer bathrooms = 1;
+
+    /** Comma-separated amenities: "wifi,parking,pool,kitchen" */
+    private String amenities;
+
+    // ── Listing lifecycle ───────────────────────────────────
+    @Builder.Default
+    @Column(nullable = false)
+    private String statut = "ACTIVE";
+
+    @Builder.Default
+    @Column(name = "minimum_stay")
+    private Integer minimumStay = 1;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

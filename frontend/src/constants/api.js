@@ -4,7 +4,7 @@
  * Toutes les routes de l'API backend sont centralisées ici.
  * Pour activer le mode réel : définir VITE_API_URL dans le fichier .env
  *
- * Exemple :  VITE_API_URL=http://localhost:5000
+ * Exemple :  VITE_API_URL=http://localhost:8080
  * ──────────────────────────────────────────────────────────────────
  */
 
@@ -39,6 +39,8 @@ export const ENDPOINTS = {
   CREER_PROPRIETE:       '/api/annonces',
   MODIFIER_PROPRIETE:(id) => `/api/annonces/${id}`,
   SUPPRIMER_PROPRIETE:(id)=> `/api/annonces/${id}`,
+  RECHERCHE_AVANCEE:     '/api/annonces/search',
+  DISPONIBILITE:    (id) => `/api/annonces/${id}/availability`,
 
   // ── Réservations ──────────────────────────────────────────────
   RESERVATIONS:          '/api/reservations',
@@ -67,4 +69,15 @@ export const ENDPOINTS = {
   AVIS_PROPRIETE:   (id) => `/api/annonces/${id}/avis`,
   AVIS_STATS:       (id) => `/api/annonces/${id}/avis/stats`,
   CREER_AVIS:       (id) => `/api/annonces/${id}/avis`,
+
+  // ── Favoris ───────────────────────────────────────────────────
+  FAVORIS:               '/api/favorites',
+  AJOUTER_FAVORI:   (id) => `/api/favorites/${id}`,
+  RETIRER_FAVORI:   (id) => `/api/favorites/${id}`,
+  VERIFIER_FAVORI:  (id) => `/api/favorites/${id}/check`,
+
+  // ── Admin ─────────────────────────────────────────────────────
+  ADMIN_STATS:           '/api/admin/stats',
+  ADMIN_USERS:           '/api/admin/users',
+  ADMIN_DELETE_USER:(id) => `/api/admin/users/${id}`,
 };

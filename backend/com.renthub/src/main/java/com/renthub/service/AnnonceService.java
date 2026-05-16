@@ -6,6 +6,7 @@ import com.renthub.entity.Annonce;
 import com.renthub.entity.User;
 import com.renthub.repository.AnnonceRepository;
 import com.renthub.repository.AvisRepository;
+import com.renthub.repository.ReservationRepository;
 import com.renthub.repository.UserRepository;
 import com.renthub.exception.ResourceNotFoundException;
 import com.renthub.entity.Role;
@@ -16,9 +17,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +28,7 @@ public class AnnonceService {
     private final AnnonceRepository annonceRepository;
     private final AvisRepository avisRepository;
     private final UserRepository userRepository;
+    private final ReservationRepository reservationRepository;
 
     @Transactional(readOnly = true)
     public List<AnnonceDTO> getAllAnnonces() {
@@ -78,6 +79,38 @@ public class AnnonceService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Advanced search with optional filters: type, price range, guests, address, date availability.
+     */
+    @Transactional(readOnly = true)
+    public List<AnnonceDTO> searchWithFilters(
+            String type, Double prixMin, Double prixMax,
+            Integer maxGuests, String adresse,
+            LocalDate dateDebut, LocalDate dateFin) {
+        Map<Integer, double[]> ratingMap = buildRatingMap();
+        return annonceRepository.searchWithFilters(type, prixMin, prixMax, maxGuests, adresse, dateDebut, dateFin)
+                .stream()
+                .map(a -> toDTO(a, ratingMap))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get booked date ranges for a listing (availability API).
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, LocalDate>> getAvailability(Integer annonceId) {
+        // Verify annonce exists
+        annonceRepository.findById(annonceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Annonce non trouvée avec l'ID : " + annonceId));
+
+        return reservationRepository.findBookedDatesByAnnonceId(annonceId).stream()
+                .map(row -> Map.of(
+                        "dateDebut", (LocalDate) row[0],
+                        "dateFin", (LocalDate) row[1]
+                ))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public AnnonceDTO createAnnonce(AnnonceRequest request, String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
@@ -86,12 +119,18 @@ public class AnnonceService {
         Annonce annonce = Annonce.builder()
                 .titre(request.getTitre())
                 .description(request.getDescription())
-            .typeLogement(request.getType())
+                .typeLogement(request.getType())
                 .prixNuit(request.getPrixNuit())
                 .adresse(request.getAdresse())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .disponibilite(true)
+                .maxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 2)
+                .bedrooms(request.getBedrooms() != null ? request.getBedrooms() : 1)
+                .bathrooms(request.getBathrooms() != null ? request.getBathrooms() : 1)
+                .amenities(request.getAmenities() != null ? String.join(",", request.getAmenities()) : null)
+                .statut(request.getStatut() != null ? request.getStatut() : "ACTIVE")
+                .minimumStay(request.getMinimumStay() != null ? request.getMinimumStay() : 1)
                 .user(host)
                 .build();
 
@@ -127,6 +166,14 @@ public class AnnonceService {
         }
         if (request.getLatitude() != null) annonce.setLatitude(request.getLatitude());
         if (request.getLongitude() != null) annonce.setLongitude(request.getLongitude());
+
+        // New fields
+        if (request.getMaxGuests() != null) annonce.setMaxGuests(request.getMaxGuests());
+        if (request.getBedrooms() != null) annonce.setBedrooms(request.getBedrooms());
+        if (request.getBathrooms() != null) annonce.setBathrooms(request.getBathrooms());
+        if (request.getAmenities() != null) annonce.setAmenities(String.join(",", request.getAmenities()));
+        if (request.getStatut() != null) annonce.setStatut(request.getStatut());
+        if (request.getMinimumStay() != null) annonce.setMinimumStay(request.getMinimumStay());
 
         return toDTO(annonceRepository.save(annonce));
     }
@@ -185,6 +232,16 @@ public class AnnonceService {
         dto.setDisponibilite(annonce.isDisponibilite());
         dto.setCreatedAt(annonce.getCreatedAt());
 
+        // New fields
+        dto.setMaxGuests(annonce.getMaxGuests());
+        dto.setBedrooms(annonce.getBedrooms());
+        dto.setBathrooms(annonce.getBathrooms());
+        dto.setStatut(annonce.getStatut());
+        dto.setMinimumStay(annonce.getMinimumStay());
+        if (annonce.getAmenities() != null && !annonce.getAmenities().isBlank()) {
+            dto.setAmenities(Arrays.asList(annonce.getAmenities().split(",")));
+        }
+
         if (annonce.getUser() != null) {
             dto.setUserId(annonce.getUser().getId());
             dto.setUserName(annonce.getUser().getNom());
@@ -215,4 +272,3 @@ public class AnnonceService {
         return map;
     }
 }
-
