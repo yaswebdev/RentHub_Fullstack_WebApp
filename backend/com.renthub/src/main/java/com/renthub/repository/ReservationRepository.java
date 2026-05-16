@@ -8,8 +8,14 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 public interface ReservationRepository extends JpaRepository<Reservation, Integer> {
+
+    @EntityGraph(attributePaths = {"annonce", "locataire"})
     List<Reservation> findByLocataireId(Integer locataireId);
+
+    @EntityGraph(attributePaths = {"annonce", "locataire"})
     List<Reservation> findByAnnonceUserId(Integer hostId);
 
         @Query("""

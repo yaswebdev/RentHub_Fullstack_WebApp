@@ -45,6 +45,7 @@ class AnnonceControllerIntegrationTest {
         AnnonceRequest request = new AnnonceRequest();
         request.setTitre("Loft moderne");
         request.setDescription("Vue mer");
+        request.setType("appartement");
         request.setPrixNuit(210.0);
         request.setAdresse("Tanger");
 

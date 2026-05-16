@@ -110,11 +110,21 @@ public class AnnonceService {
             throw new AccessDeniedException("Non autorisé à modifier cette annonce");
         }
 
-        annonce.setTitre(request.getTitre());
-        annonce.setDescription(request.getDescription());
-        annonce.setTypeLogement(request.getType());
-        annonce.setPrixNuit(request.getPrixNuit());
-        annonce.setAdresse(request.getAdresse());
+        if (request.getTitre() != null && !request.getTitre().isBlank()) {
+            annonce.setTitre(request.getTitre());
+        }
+        if (request.getDescription() != null && !request.getDescription().isBlank()) {
+            annonce.setDescription(request.getDescription());
+        }
+        if (request.getType() != null && !request.getType().isBlank()) {
+            annonce.setTypeLogement(request.getType());
+        }
+        if (request.getPrixNuit() != null) {
+            annonce.setPrixNuit(request.getPrixNuit());
+        }
+        if (request.getAdresse() != null && !request.getAdresse().isBlank()) {
+            annonce.setAdresse(request.getAdresse());
+        }
         if (request.getLatitude() != null) annonce.setLatitude(request.getLatitude());
         if (request.getLongitude() != null) annonce.setLongitude(request.getLongitude());
 

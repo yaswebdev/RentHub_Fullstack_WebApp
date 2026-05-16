@@ -27,7 +27,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.findByEmail(req.getEmail()).isPresent()) {
+        String normalizedEmail = req.getEmail().toLowerCase().trim();
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             throw new DuplicateResourceException("Cet email est déjà utilisé");
         }
 
@@ -44,7 +45,7 @@ public class AuthService {
 
         User user = new User();
         user.setNom(req.getNom());
-        user.setEmail(req.getEmail());
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setRole(role);
 
@@ -55,11 +56,12 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
+        String normalizedEmail = req.getEmail().toLowerCase().trim();
         authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
+            new UsernamePasswordAuthenticationToken(normalizedEmail, req.getPassword())
         );
 
-        User user = userRepository.findByEmail(req.getEmail())
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
         String token = jwtUtils.generateToken(user.getEmail());

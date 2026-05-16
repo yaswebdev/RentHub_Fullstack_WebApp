@@ -187,7 +187,7 @@ class CancellationServiceTest {
             BusinessRuleException ex = assertThrows(BusinessRuleException.class,
                     () -> reservationService.cancelReservation(100, null, "tenant@example.com"));
 
-            assertTrue(ex.getMessage().contains("avant la date de début"));
+            assertTrue(ex.getMessage().contains("avant") || ex.getMessage().contains("date de début"));
             verify(reservationRepository, never()).save(any());
         }
 

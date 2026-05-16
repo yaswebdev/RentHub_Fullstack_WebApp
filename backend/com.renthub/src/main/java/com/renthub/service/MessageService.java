@@ -92,9 +92,17 @@ public class MessageService {
         User user = findUserByEmail(userEmail);
         List<Integer> reservationIds = messageRepository.findReservationIdsWithMessagesByUserId(user.getId());
 
+        if (reservationIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Reservation> reservations = reservationRepository.findAllById(reservationIds);
+        java.util.Map<Integer, Reservation> reservationMap = reservations.stream()
+                .collect(Collectors.toMap(Reservation::getId, r -> r));
+
         List<ConversationDTO> conversations = new ArrayList<>();
         for (Integer reservationId : reservationIds) {
-            Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
+            Reservation reservation = reservationMap.get(reservationId);
             if (reservation == null) continue;
 
             ConversationDTO conv = new ConversationDTO();

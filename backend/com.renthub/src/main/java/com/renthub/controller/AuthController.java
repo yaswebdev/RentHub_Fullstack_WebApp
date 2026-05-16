@@ -7,6 +7,7 @@ import com.renthub.dto.RegisterRequest;
 import com.renthub.dto.UserDTO;
 import com.renthub.service.AuthService;
 import com.renthub.service.UserService;
+import com.renthub.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,20 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @GetMapping("/profil")
+    public ResponseEntity<UserDTO> getProfil(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setNom(user.getNom());
+        dto.setEmail(user.getEmail());
+        dto.setRole(user.getRole().name());
+        dto.setPhotoUrl(user.getPhotoUrl());
+        dto.setCreatedAt(user.getCreatedAt());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping(path = "/profile/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

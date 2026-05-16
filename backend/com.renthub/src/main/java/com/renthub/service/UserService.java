@@ -27,6 +27,11 @@ public class UserService {
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
 
+    public User findByEmail(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+    }
+
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll()
                 .stream()
