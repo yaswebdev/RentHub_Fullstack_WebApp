@@ -24,7 +24,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.upload.dir:uploads}")
+    @Value("${app.upload.dir:uploads/photos}")
     private String uploadDir;
 
     public User findByEmail(String email) {

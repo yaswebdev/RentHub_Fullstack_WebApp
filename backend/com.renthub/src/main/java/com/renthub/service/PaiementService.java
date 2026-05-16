@@ -55,6 +55,7 @@ public class PaiementService {
 
     // ─── Payment Intent ──────────────────────────────────────────
 
+    @Transactional
     public PaymentIntentResponse createPaymentIntent(Integer reservationId) throws StripeException {
         initStripe();
 
@@ -103,6 +104,7 @@ public class PaiementService {
         return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), paiement.getStatut());
     }
 
+    @Transactional
     public PaymentIntentResponse confirmPaymentIntent(String paymentIntentId, String paymentMethodId) throws StripeException {
         initStripe();
 
@@ -328,6 +330,7 @@ public class PaiementService {
 
     // ─── Webhook ─────────────────────────────────────────────────
 
+    @Transactional
     public Map<String, Object> handleWebhook(String signature, String payload) {
         initStripe();
 
@@ -355,15 +358,16 @@ public class PaiementService {
             if (reservationIdRaw != null && paymentIntentId != null) {
             Integer reservationId = Integer.valueOf(reservationIdRaw);
             Paiement paiement = paiementRepository.findByReservationId(reservationId)
-                .orElseGet(() -> Paiement.builder()
-                    .reservation(reservationRepository.findById(reservationId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable")))
-                    .montant(reservationRepository.findById(reservationId)
-                        .map(r -> r.getMontant().doubleValue())
-                        .orElse(0.0))
-                    .statut("EN_ATTENTE")
-                    .createdAt(LocalDateTime.now())
-                    .build());
+                .orElseGet(() -> {
+                    Reservation res = reservationRepository.findById(reservationId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
+                    return Paiement.builder()
+                        .reservation(res)
+                        .montant(res.getMontant().doubleValue())
+                        .statut("EN_ATTENTE")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                });
 
             paiement.setStripePaymentIntentId(paymentIntentId);
             paiement.setStatut("PAYE");
@@ -385,15 +389,16 @@ public class PaiementService {
                 if (reservationIdRaw == null) return null;
                 Integer reservationId = Integer.valueOf(reservationIdRaw);
                 return paiementRepository.findByReservationId(reservationId)
-                    .orElseGet(() -> Paiement.builder()
-                        .reservation(reservationRepository.findById(reservationId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable")))
-                        .montant(reservationRepository.findById(reservationId)
-                            .map(r -> r.getMontant().doubleValue())
-                            .orElse(0.0))
-                        .statut("EN_ATTENTE")
-                        .createdAt(LocalDateTime.now())
-                        .build());
+                    .orElseGet(() -> {
+                        Reservation res = reservationRepository.findById(reservationId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
+                        return Paiement.builder()
+                            .reservation(res)
+                            .montant(res.getMontant().doubleValue())
+                            .statut("EN_ATTENTE")
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    });
                 });
 
             if (paiement != null && !event.getId().equals(paiement.getLastStripeEventId())) {

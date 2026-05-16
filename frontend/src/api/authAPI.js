@@ -117,8 +117,17 @@ export async function deconnexion() {
  */
 export async function fetchProfil() {
   if (API_BASE_URL) {
-    const raw = localStorage.getItem(CLE_UTILISATEUR);
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const { data } = await apiClient.get(ENDPOINTS.AUTH_PROFIL);
+      // Update localStorage with fresh server data
+      localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(data));
+      return data;
+    } catch {
+      // Token expired or invalid — clear and return null
+      localStorage.removeItem(CLE_TOKEN);
+      localStorage.removeItem(CLE_UTILISATEUR);
+      return null;
+    }
   }
 
   // Mode dev : retourne le profil depuis localStorage

@@ -14,6 +14,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/debug")
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("dev")
 public class DebugController {
 
     private final UserRepository userRepository;

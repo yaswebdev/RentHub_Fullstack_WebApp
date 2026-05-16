@@ -16,6 +16,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
 
+    @Transactional
     public AuthResponse register(RegisterRequest req) {
         String normalizedEmail = req.getEmail().toLowerCase().trim();
         if (userRepository.findByEmail(normalizedEmail).isPresent()) {
@@ -55,6 +57,7 @@ public class AuthService {
         return new AuthResponse(token, toDTO(savedUser));
     }
 
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
         String normalizedEmail = req.getEmail().toLowerCase().trim();
         authenticationManager.authenticate(

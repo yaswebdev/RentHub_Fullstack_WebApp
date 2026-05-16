@@ -12,6 +12,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, onAuthStateChanged } from '../firebase';
 import { API_BASE_URL, CLE_TOKEN, CLE_UTILISATEUR } from '../constants/api';
+import { fetchProfil } from '../api/authAPI';
 
 const AuthContext = createContext({
   utilisateur: null,
@@ -42,20 +43,23 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     if (API_BASE_URL) {
-      /* ── Mode production : lire le JWT depuis localStorage ──────── */
+      /* ── Mode production : validate JWT by calling backend ─────── */
       const tokenStocke = localStorage.getItem(CLE_TOKEN);
-      const userStocke  = localStorage.getItem(CLE_UTILISATEUR);
-
-      if (tokenStocke && userStocke) {
-        try {
-          setUtilisateur(normalizeUser(JSON.parse(userStocke)));
-          setToken(tokenStocke);
-        } catch {
-          localStorage.removeItem(CLE_TOKEN);
-          localStorage.removeItem(CLE_UTILISATEUR);
-        }
+      if (tokenStocke) {
+        fetchProfil().then((profil) => {
+          if (profil) {
+            setUtilisateur(normalizeUser(profil));
+            setToken(tokenStocke);
+          } else {
+            // Token expired or invalid — already cleared by fetchProfil
+            setUtilisateur(null);
+            setToken(null);
+          }
+          setChargement(false);
+        });
+      } else {
+        setChargement(false);
       }
-      setChargement(false);
     } else {
       /* ── Mode développement : écouter l'émulateur local ─────────── */
       const desabonner = onAuthStateChanged(auth, (u) => {

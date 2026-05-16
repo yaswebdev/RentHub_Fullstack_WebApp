@@ -16,7 +16,7 @@ import axios from 'axios';
 import { API_BASE_URL, CLE_TOKEN } from '../constants/api';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL || 'http://localhost:8080',
+  baseURL: API_BASE_URL || '',
   timeout: 12000,
   headers: {
     'Accept': 'application/json',

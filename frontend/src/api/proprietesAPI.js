@@ -11,7 +11,7 @@ import { ENDPOINTS, API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
 import { getProfilePhotoUrl } from '../utils/imageHelpers';
 
-const BACKEND_BASE_URL = API_BASE_URL || 'http://localhost:5000';
+const BACKEND_BASE_URL = API_BASE_URL || '';
 
 const normalizePhotoUrls = (urls = []) =>
   urls.map((url) => (url?.startsWith('/') ? `${BACKEND_BASE_URL}${url}` : url));

@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,17 +52,15 @@ public class ReservationService {
     @Transactional(readOnly = true)
     public List<ReservationDTO> getReservationsByLocataireEmail(String email) {
         User user = findUserByEmail(email);
-        return reservationRepository.findByLocataireId(user.getId()).stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        List<Reservation> reservations = reservationRepository.findByLocataireId(user.getId());
+        return toDTOList(reservations);
     }
 
     @Transactional(readOnly = true)
     public List<ReservationDTO> getReservationsByHostEmail(String email) {
         User user = findUserByEmail(email);
-        return reservationRepository.findByAnnonceUserId(user.getId()).stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        List<Reservation> reservations = reservationRepository.findByAnnonceUserId(user.getId());
+        return toDTOList(reservations);
     }
 
     @Transactional(readOnly = true)
@@ -165,8 +164,23 @@ public class ReservationService {
     }
 
     private ReservationDTO toDTO(Reservation reservation) {
-        ReservationDTO dto = new ReservationDTO();
         Paiement paiement = paiementRepository.findByReservationId(reservation.getId()).orElse(null);
+        return toDTO(reservation, paiement);
+    }
+
+    /** Batch-convert reservations to DTOs (1 query for all paiements instead of N) */
+    private List<ReservationDTO> toDTOList(List<Reservation> reservations) {
+        if (reservations.isEmpty()) return List.of();
+        List<Integer> ids = reservations.stream().map(Reservation::getId).toList();
+        Map<Integer, Paiement> paiementMap = paiementRepository.findByReservationIdIn(ids).stream()
+                .collect(Collectors.toMap(p -> p.getReservation().getId(), p -> p, (a, b) -> a));
+        return reservations.stream()
+                .map(r -> toDTO(r, paiementMap.get(r.getId())))
+                .collect(Collectors.toList());
+    }
+
+    private ReservationDTO toDTO(Reservation reservation, Paiement paiement) {
+        ReservationDTO dto = new ReservationDTO();
         dto.setId(reservation.getId());
         dto.setAnnonceId(reservation.getAnnonce().getId());
         dto.setAnnonceTitre(reservation.getAnnonce().getTitre());
