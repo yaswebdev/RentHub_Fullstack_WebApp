@@ -80,4 +80,6 @@ export const ENDPOINTS = {
   ADMIN_STATS:           '/api/admin/stats',
   ADMIN_USERS:           '/api/admin/users',
   ADMIN_DELETE_USER:(id) => `/api/admin/users/${id}`,
+  ADMIN_ANNONCES:        '/api/admin/annonces',
+  ADMIN_RESERVATIONS:    '/api/admin/reservations',
 };

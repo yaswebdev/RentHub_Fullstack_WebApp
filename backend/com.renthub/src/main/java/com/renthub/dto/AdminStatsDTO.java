@@ -14,4 +14,7 @@ public class AdminStatsDTO {
     private BigDecimal totalRevenue;
     private long totalMessages;
     private long activeListings;
+    private long pendingReservations;
+    private long totalHosts;
+    private long totalTenants;
 }

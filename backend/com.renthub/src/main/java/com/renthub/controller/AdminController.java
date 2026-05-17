@@ -1,6 +1,8 @@
 package com.renthub.controller;
 
 import com.renthub.dto.AdminStatsDTO;
+import com.renthub.dto.AnnonceDTO;
+import com.renthub.dto.ReservationDTO;
 import com.renthub.dto.UserDTO;
 import com.renthub.service.AdminService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,24 @@ public class AdminController {
     public ResponseEntity<Page<UserDTO>> getAllUsers(
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(adminService.getAllUsers(pageable));
+    }
+
+    /**
+     * GET /api/admin/annonces?page=0&size=20 — Paginated listing of ALL annonces (admin only).
+     */
+    @GetMapping("/annonces")
+    public ResponseEntity<Page<AnnonceDTO>> getAllAnnonces(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(adminService.getAllAnnonces(pageable));
+    }
+
+    /**
+     * GET /api/admin/reservations?page=0&size=20 — Paginated listing of ALL reservations (admin only).
+     */
+    @GetMapping("/reservations")
+    public ResponseEntity<Page<ReservationDTO>> getAllReservations(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(adminService.getAllReservations(pageable));
     }
 
     /**

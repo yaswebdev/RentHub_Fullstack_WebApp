@@ -14,6 +14,7 @@ import { HostEditListing } from './pages/HostEditListing';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { PaymentCancel } from './pages/PaymentCancel';
 import { Profile } from './pages/Profile';
+import { AdminPanel } from './pages/AdminPanel';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -61,6 +62,9 @@ export default function App() {
                   } />
                   <Route path="host/annonces/nouveau" element={
                     <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostNewListing /></ProtectedRoute>
+                  } />
+                  <Route path="admin" element={
+                    <ProtectedRoute roles={["ADMIN"]}><AdminPanel /></ProtectedRoute>
                   } />
                   <Route path="host/annonces/:id/editer" element={
                     <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostEditListing /></ProtectedRoute>

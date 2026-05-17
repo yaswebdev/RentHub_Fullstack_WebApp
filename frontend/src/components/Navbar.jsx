@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, User, Map as MapIcon, X } from 'lucide-react';
+import { Search, Menu, User, Map as MapIcon, X, Shield } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
@@ -14,6 +14,7 @@ export const Navbar = () => {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const roleValue = user?.role?.toUpperCase?.();
   const isHost = ['HOTE', 'ADMIN'].includes(roleValue);
+  const isAdmin = roleValue === 'ADMIN';
 
   return (
     <>
@@ -55,13 +56,23 @@ export const Navbar = () => {
                 </button>
               )}
               {user ? (
-                <Link to="/dashboard">
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Link to="/admin">
+                      <div className="flex items-center gap-2 border border-red-200 rounded-full px-3 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-red-50">
+                        <Shield className="h-4 w-4 text-red-600" />
+                        <span className="text-sm font-semibold text-red-700">Admin</span>
+                      </div>
+                    </Link>
+                  )}
+                  <Link to="/dashboard">
                   <div className="flex bg-white items-center gap-3 border border-slate-200 rounded-full px-4 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                     <span className="text-sm font-semibold tracking-tight text-slate-700">
                       Tableau de bord
                     </span>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link to="/login">
@@ -127,12 +138,22 @@ export const Navbar = () => {
 
             <div className="mt-auto border-t border-slate-100 pt-6 space-y-3">
               {user ? (
-                <Link to="/dashboard" onClick={() => setMenuOuvert(false)}>
-                  <Button className="w-full justify-start h-14" size="lg">
-                    <User className="mr-3 h-5 w-5" /> 
-                    Mon Tableau de bord
-                  </Button>
-                </Link>
+                <>
+                  <Link to="/dashboard" onClick={() => setMenuOuvert(false)}>
+                    <Button className="w-full justify-start h-14" size="lg">
+                      <User className="mr-3 h-5 w-5" /> 
+                      Mon Tableau de bord
+                    </Button>
+                  </Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMenuOuvert(false)}>
+                      <Button variant="danger" className="w-full justify-start h-14 mt-2" size="lg">
+                        <Shield className="mr-3 h-5 w-5" /> 
+                        Panneau Admin
+                      </Button>
+                    </Link>
+                  )}
+                </>
               ) : (
                 <>
                   <Link to="/register" onClick={() => setMenuOuvert(false)}>
