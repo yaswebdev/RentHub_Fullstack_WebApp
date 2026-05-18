@@ -28,4 +28,14 @@ public class AnnonceDTO {
     // Rating stats
     private Double averageRating;
     private Long reviewCount;
+
+    // Host listing attributes
+    private Integer maxGuests;
+    private Integer bedrooms;
+    private Integer bathrooms;
+    private List<String> amenities;
+
+    // Listing lifecycle
+    private String statut;
+    private Integer minimumStay;
 }

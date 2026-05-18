@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class AnnonceRequest {
 
@@ -25,6 +27,15 @@ public class AnnonceRequest {
     private String adresse;
 
     private Double latitude;
-    
     private Double longitude;
+
+    // Host listing attributes (optional on create/update)
+    private Integer maxGuests;
+    private Integer bedrooms;
+    private Integer bathrooms;
+    private List<String> amenities;
+
+    // Listing lifecycle
+    private String statut;
+    private Integer minimumStay;
 }

@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, User, Map as MapIcon, X, Sun, Moon } from 'lucide-react';
+import { Search, Menu, User, Map as MapIcon, X, Shield } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Navbar = () => {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [menuOuvert, setMenuOuvert] = useState(false);
   // Désactiver la barre de recherche sur les pages d'authentification
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const roleValue = user?.role?.toUpperCase?.();
   const isHost = ['HOTE', 'ADMIN'].includes(roleValue);
+  const isAdmin = roleValue === 'ADMIN';
 
   return (
     <>
@@ -51,32 +50,29 @@ export const Navbar = () => {
 
             {/* Menu Utilisateur (Desktop) */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="p-2 rounded-full border border-slate-200 bg-white shadow-sm text-slate-700 hover:text-slate-900 hover:border-slate-300 transition-colors"
-                aria-label={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
-                title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
-              >
-                {theme === 'dark' ? (
-                  <Sun className="h-5 w-5" />
-                ) : (
-                  <Moon className="h-5 w-5" />
-                )}
-              </button>
               {!isHost && (
                 <button className="text-sm font-semibold text-slate-700 hover:text-slate-900">
                   Devenir hôte
                 </button>
               )}
               {user ? (
-                <Link to="/dashboard">
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Link to="/admin">
+                      <div className="flex items-center gap-2 border border-red-200 rounded-full px-3 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-red-50">
+                        <Shield className="h-4 w-4 text-red-600" />
+                        <span className="text-sm font-semibold text-red-700">Admin</span>
+                      </div>
+                    </Link>
+                  )}
+                  <Link to="/dashboard">
                   <div className="flex bg-white items-center gap-3 border border-slate-200 rounded-full px-4 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                     <span className="text-sm font-semibold tracking-tight text-slate-700">
                       Tableau de bord
                     </span>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link to="/login">
@@ -141,34 +137,23 @@ export const Navbar = () => {
             </div>
 
             <div className="mt-auto border-t border-slate-100 pt-6 space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  toggleTheme();
-                  setMenuOuvert(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 h-14 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors"
-                aria-label={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
-              >
-                {theme === 'dark' ? (
-                  <>
-                    <Sun className="h-5 w-5" />
-                    Mode clair
-                  </>
-                ) : (
-                  <>
-                    <Moon className="h-5 w-5" />
-                    Mode sombre
-                  </>
-                )}
-              </button>
               {user ? (
-                <Link to="/dashboard" onClick={() => setMenuOuvert(false)}>
-                  <Button className="w-full justify-start h-14" size="lg">
-                    <User className="mr-3 h-5 w-5" /> 
-                    Mon Tableau de bord
-                  </Button>
-                </Link>
+                <>
+                  <Link to="/dashboard" onClick={() => setMenuOuvert(false)}>
+                    <Button className="w-full justify-start h-14" size="lg">
+                      <User className="mr-3 h-5 w-5" /> 
+                      Mon Tableau de bord
+                    </Button>
+                  </Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMenuOuvert(false)}>
+                      <Button variant="danger" className="w-full justify-start h-14 mt-2" size="lg">
+                        <Shield className="mr-3 h-5 w-5" /> 
+                        Panneau Admin
+                      </Button>
+                    </Link>
+                  )}
+                </>
               ) : (
                 <>
                   <Link to="/register" onClick={() => setMenuOuvert(false)}>

@@ -31,4 +31,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, Intege
                         @Param("dateDebut") LocalDate dateDebut,
                         @Param("dateFin") LocalDate dateFin
         );
+
+    /**
+     * Get all booked date ranges for a listing (active reservations only).
+     * Used by the availability API.
+     */
+    @Query("""
+        SELECT r.dateDebut, r.dateFin FROM Reservation r
+        WHERE r.annonce.id = :annonceId
+          AND r.statut IN ('EN_ATTENTE', 'CONFIRMEE', 'PAYEE')
+          AND r.dateFin >= CURRENT_DATE
+        ORDER BY r.dateDebut
+    """)
+    List<Object[]> findBookedDatesByAnnonceId(@Param("annonceId") Integer annonceId);
 }
