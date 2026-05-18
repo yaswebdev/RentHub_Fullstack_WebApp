@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, User, Map as MapIcon, X } from 'lucide-react';
+import { Search, Menu, User, Map as MapIcon, X, Sun, Moon } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Navbar = () => {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [menuOuvert, setMenuOuvert] = useState(false);
   // Désactiver la barre de recherche sur les pages d'authentification
@@ -49,6 +51,19 @@ export const Navbar = () => {
 
             {/* Menu Utilisateur (Desktop) */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-2 rounded-full border border-slate-200 bg-white shadow-sm text-slate-700 hover:text-slate-900 hover:border-slate-300 transition-colors"
+                aria-label={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
+                title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
               {!isHost && (
                 <button className="text-sm font-semibold text-slate-700 hover:text-slate-900">
                   Devenir hôte
@@ -126,6 +141,27 @@ export const Navbar = () => {
             </div>
 
             <div className="mt-auto border-t border-slate-100 pt-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleTheme();
+                  setMenuOuvert(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 h-14 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors"
+                aria-label={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="h-5 w-5" />
+                    Mode clair
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-5 w-5" />
+                    Mode sombre
+                  </>
+                )}
+              </button>
               {user ? (
                 <Link to="/dashboard" onClick={() => setMenuOuvert(false)}>
                   <Button className="w-full justify-start h-14" size="lg">

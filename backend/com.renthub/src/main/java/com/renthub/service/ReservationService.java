@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -60,6 +62,12 @@ public class ReservationService {
     public List<ReservationDTO> getReservationsByHostEmail(String email) {
         User user = findUserByEmail(email);
         List<Reservation> reservations = reservationRepository.findByAnnonceUserId(user.getId());
+        return toDTOList(reservations);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationDTO> getAllReservationsForAdmin() {
+        List<Reservation> reservations = reservationRepository.findAll();
         return toDTOList(reservations);
     }
 
@@ -227,9 +235,15 @@ public class ReservationService {
 
         // Guest: can cancel up to and including the start date (blocked only after stay begins)
         if (isLocataire && !isAdmin) {
-            if (LocalDate.now().isAfter(reservation.getDateDebut())) {
+            LocalDateTime debutSejour = LocalDateTime.of(reservation.getDateDebut(), LocalTime.MIDNIGHT);
+            LocalDateTime limiteAnnulation = debutSejour.minusHours(24);
+            if (LocalDateTime.now().isAfter(limiteAnnulation)) {
                 throw new BusinessRuleException(
-                        "Un locataire ne peut annuler qu'avant ou le jour de la date de début du séjour");
+                        "Un locataire doit annuler au moins 24 heures avant la date de début du séjour");
+            }
+
+            if (request == null || request.getReason() == null || request.getReason().isBlank()) {
+                throw new BusinessRuleException("Veuillez fournir un motif d'annulation");
             }
         }
 

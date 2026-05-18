@@ -54,6 +54,11 @@ export const Dashboard = () => {
   const [occupancyDays, setOccupancyDays] = useState(90);
   const [deletingAnnonceId, setDeletingAnnonceId] = useState(null);
   const [confirmAnnonce, setConfirmAnnonce] = useState(null);
+  const [confirmCancel, setConfirmCancel] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const roleValue = user?.role?.toUpperCase?.();
   const effectiveRole = roleValue || (API_BASE_URL ? null : 'LOCATAIRE');
   const isHost = ['HOTE', 'ADMIN'].includes(effectiveRole);
@@ -65,6 +70,11 @@ export const Dashboard = () => {
     normalizeStatus(reservation?.paymentStatus) === 'PAYE'
       ? 'PAYEE'
       : normalizeStatus(reservation?.status || reservation?.statut)
+  );
+  const isCancelledStatus = (value) => ['ANNULEE', 'CANCELLED', 'REFUSEE'].includes(normalizeStatus(value));
+  const visibleReservations = useMemo(
+    () => reservations.filter((r) => (showCancelled ? true : !isCancelledStatus(getDisplayStatus(r)))),
+    [reservations, showCancelled]
   );
   const isActiveStatus = (value) => !['ANNULEE', 'REFUSEE', 'CANCELLED'].includes(normalizeStatus(value));
   const toStartOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -166,20 +176,44 @@ export const Dashboard = () => {
     }
   };
 
-  const handleAnnuler = async (id) => {
+  const handleAnnuler = (reservation) => {
+    if (!reservation?.id) return;
+    setCancelReason('');
+    setCancelError('');
+    setConfirmCancel({
+      id: reservation.id,
+      title: reservation.propertyTitle || reservation.titrePropriete || 'Réservation',
+      startDate: reservation.dateDebut || reservation.startDate,
+    });
+  };
+
+  const submitCancelReservation = async () => {
+    if (!confirmCancel?.id) return;
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelError("Veuillez saisir un motif d'annulation.");
+      return;
+    }
+
+    setCancelLoading(true);
     try {
-      await annuler(id);
+      await annuler(confirmCancel.id, trimmedReason);
       toast('Réservation annulée', 'info');
+      setConfirmCancel(null);
+      setCancelReason('');
+      setCancelError('');
     } catch {
       toast('Impossible d\'annuler la réservation', 'error');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
   const stats = {
-    total:      reservations.length,
-    confirmées: reservations.filter((r) => ['CONFIRMEE', 'PAYEE'].includes(getDisplayStatus(r))).length,
-    enAttente:  reservations.filter((r) => ['PENDING', 'EN_ATTENTE'].includes(getDisplayStatus(r))).length,
-    depenses:   reservations.reduce((acc, r) => acc + (r.totalPrice || r.prixTotal || 0), 0),
+    total:      visibleReservations.length,
+    confirmées: visibleReservations.filter((r) => ['CONFIRMEE', 'PAYEE'].includes(getDisplayStatus(r))).length,
+    enAttente:  visibleReservations.filter((r) => ['PENDING', 'EN_ATTENTE'].includes(getDisplayStatus(r))).length,
+    depenses:   visibleReservations.reduce((acc, r) => acc + (r.totalPrice || r.prixTotal || 0), 0),
   };
 
   return (
@@ -415,7 +449,7 @@ export const Dashboard = () => {
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => <div key={i} className="h-32 bg-white dark:bg-slate-900 rounded-2xl animate-pulse" />)}
               </div>
-            ) : reservations.length === 0 ? (
+            ) : visibleReservations.length === 0 ? (
               <Card className="p-12 text-center dark:bg-slate-900">
                 <Calendar className="h-16 w-16 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Aucune réservation</h3>
@@ -425,7 +459,22 @@ export const Dashboard = () => {
                 </Link>
               </Card>
             ) : (
-              reservations.map((r) => {
+              <>
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelled((prev) => !prev)}
+                    className={cn(
+                      'text-sm font-semibold px-4 py-2 rounded-full border transition-colors',
+                      showCancelled
+                        ? 'bg-primary-50 text-primary-700 border-primary-200'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900'
+                    )}
+                  >
+                    {showCancelled ? 'Masquer les annulees' : 'Afficher les annulees'}
+                  </button>
+                </div>
+                {visibleReservations.map((r) => {
                 const statusKey = getDisplayStatus(r);
                 const statut = STATUT_CONFIG[statusKey] || STATUT_CONFIG[r.status] || STATUT_CONFIG[r.statut] || STATUT_CONFIG.pending;
                 const Icone  = statut.icone;
@@ -468,7 +517,7 @@ export const Dashboard = () => {
                               <Button size="sm" variant="outline">Voir le logement</Button>
                             </Link>
                             {canCancel && (
-                              <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleAnnuler(r.id)}>
+                              <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleAnnuler(r)}>
                                 Annuler
                               </Button>
                             )}
@@ -478,7 +527,8 @@ export const Dashboard = () => {
                     </CardContent>
                   </Card>
                 );
-              })
+              })}
+              </>
             )}
           </div>
         )}
@@ -662,6 +712,62 @@ export const Dashboard = () => {
                   }}
                 >
                   Supprimer
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmCancel && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200">
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900">Annuler cette réservation ?</h3>
+                <p className="text-sm text-slate-500 mt-2">
+                  {confirmCancel.title}
+                </p>
+                {confirmCancel.startDate && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Date d'arrivée : {formatDate(confirmCancel.startDate)}
+                  </p>
+                )}
+                <p className="text-xs text-amber-700 mt-3">
+                  L'annulation doit être faite au moins 24 heures avant la date de début.
+                </p>
+              </div>
+              <div className="p-6 space-y-3">
+                <label className="text-sm font-semibold text-slate-900">Motif d'annulation</label>
+                <textarea
+                  rows={4}
+                  value={cancelReason}
+                  onChange={(e) => {
+                    setCancelReason(e.target.value);
+                    if (cancelError) setCancelError('');
+                  }}
+                  placeholder="Expliquez brièvement la raison de l'annulation..."
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                />
+                {cancelError && (
+                  <p className="text-xs text-red-600">{cancelError}</p>
+                )}
+              </div>
+              <div className="p-6 pt-0 flex items-center justify-end gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirmCancel(null);
+                    setCancelReason('');
+                    setCancelError('');
+                  }}
+                >
+                  Retour
+                </Button>
+                <Button
+                  variant="danger"
+                  isLoading={cancelLoading}
+                  onClick={submitCancelReservation}
+                >
+                  Confirmer l'annulation
                 </Button>
               </div>
             </div>

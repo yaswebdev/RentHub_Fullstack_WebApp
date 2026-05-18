@@ -39,6 +39,8 @@ import java.util.Set;
 public class PaiementService {
 
     private static final String STRIPE_CURRENCY = "mad";
+    private static final BigDecimal CLEANING_FEE = BigDecimal.valueOf(200);
+    private static final BigDecimal SERVICE_FEE = BigDecimal.valueOf(150);
 
     private final PaiementRepository paiementRepository;
     private final ReservationRepository reservationRepository;
@@ -175,6 +177,8 @@ public class PaiementService {
 
         long amountInCents = toCents(reservation.getMontant());
         String listingTitle = reservation.getAnnonce() != null ? reservation.getAnnonce().getTitre() : "Réservation RentHub";
+        long cleaningFeeInCents = toCents(CLEANING_FEE);
+        long serviceFeeInCents = toCents(SERVICE_FEE);
 
         SessionCreateParams params = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.PAYMENT)
@@ -196,6 +200,38 @@ public class PaiementService {
                             .setProductData(
                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                     .setName("Réservation - " + listingTitle)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+            .addLineItem(
+                SessionCreateParams.LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(
+                        SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(STRIPE_CURRENCY)
+                            .setUnitAmount(cleaningFeeInCents)
+                            .setProductData(
+                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName("Frais de ménage")
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+            .addLineItem(
+                SessionCreateParams.LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(
+                        SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(STRIPE_CURRENCY)
+                            .setUnitAmount(serviceFeeInCents)
+                            .setProductData(
+                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName("Frais de service")
                                     .build()
                             )
                             .build()
@@ -244,7 +280,7 @@ public class PaiementService {
 
         Paiement paiement = paiementRepository.findByReservationId(reservationId).orElseGet(() -> Paiement.builder()
             .reservation(reservation)
-            .montant(reservation.getMontant().doubleValue())
+            .montant(resolveTotalAmount(session, reservation))
             .statut("EN_ATTENTE")
             .createdAt(LocalDateTime.now())
             .build());
@@ -320,6 +356,10 @@ public class PaiementService {
             // else stays REFUND_PENDING (Stripe processes async)
 
         } catch (StripeException e) {
+            if ("charge_already_refunded".equals(e.getCode())) {
+                paiement.setStatut("REFUNDED");
+                return paiementRepository.save(paiement);
+            }
             paiement.setStatut("REFUND_FAILED");
             paiementRepository.save(paiement);
             throw e;
@@ -363,7 +403,7 @@ public class PaiementService {
                         .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
                     return Paiement.builder()
                         .reservation(res)
-                        .montant(res.getMontant().doubleValue())
+                        .montant(resolveTotalAmount(session, res))
                         .statut("EN_ATTENTE")
                         .createdAt(LocalDateTime.now())
                         .build();
@@ -394,7 +434,7 @@ public class PaiementService {
                             .orElseThrow(() -> new ResourceNotFoundException("Reservation introuvable"));
                         return Paiement.builder()
                             .reservation(res)
-                            .montant(res.getMontant().doubleValue())
+                            .montant(resolveTotalAmount(null, res))
                             .statut("EN_ATTENTE")
                             .createdAt(LocalDateTime.now())
                             .build();
@@ -488,5 +528,12 @@ public class PaiementService {
             throw new BusinessRuleException("Montant de réservation invalide");
         }
         return amount.movePointRight(2).longValue();
+    }
+
+    private double resolveTotalAmount(Session session, Reservation reservation) {
+        if (session != null && session.getAmountTotal() != null) {
+            return session.getAmountTotal() / 100.0;
+        }
+        return reservation.getMontant().add(CLEANING_FEE).add(SERVICE_FEE).doubleValue();
     }
 }

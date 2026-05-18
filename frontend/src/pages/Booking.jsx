@@ -48,6 +48,7 @@ export const Booking = () => {
   );
   const [chargement, setChargement] = useState(false);
   const [methodePaiement, setMethodePaiement] = useState('sur_place');
+  const [bookingError, setBookingError] = useState('');
   const checkoutEnabled = Boolean(API_BASE_URL);
 
   const nuits = calculerNuits(dateDebut, dateFin);
@@ -59,6 +60,7 @@ export const Booking = () => {
 
   const handleReserver = async (e) => {
     e.preventDefault();
+    setBookingError('');
     if (!dateDebut || !dateFin || nuits <= 0) {
       toast('Veuillez sélectionner des dates valides', 'error');
       return;
@@ -103,7 +105,10 @@ export const Booking = () => {
       toast('Réservation confirmée avec succès ! 🎉', 'success');
       navigate('/dashboard');
     } catch (err) {
-      toast(err.message || 'Erreur lors de la réservation', 'error');
+      const apiMessage = err?.response?.data?.error || err?.response?.data?.message;
+      const message = apiMessage || err.message || 'Erreur lors de la réservation';
+      setBookingError(message);
+      toast(message, 'error');
     } finally {
       setChargement(false);
     }
@@ -158,7 +163,10 @@ export const Booking = () => {
                       type="date"
                       label="Arrivée"
                       value={dateDebut}
-                      onChange={(e) => setDateDebut(e.target.value)}
+                      onChange={(e) => {
+                        setDateDebut(e.target.value);
+                        if (bookingError) setBookingError('');
+                      }}
                       min={new Date().toISOString().split('T')[0]}
                       required
                     />
@@ -166,11 +174,19 @@ export const Booking = () => {
                       type="date"
                       label="Départ"
                       value={dateFin}
-                      onChange={(e) => setDateFin(e.target.value)}
+                      onChange={(e) => {
+                        setDateFin(e.target.value);
+                        if (bookingError) setBookingError('');
+                      }}
                       min={dateDebut || new Date().toISOString().split('T')[0]}
                       required
                     />
                   </div>
+                  {bookingError && (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      {bookingError}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -271,12 +287,14 @@ export const Booking = () => {
                 <CardContent className="p-6">
                   {/* Info propriété */}
                   <div className="flex gap-4 mb-6 pb-6 border-b border-slate-200">
-                    <img
-                      src={property.image || property.images?.[0]}
-                      alt={property.title}
-                      className="w-28 h-24 rounded-xl object-cover"
-                      referrerPolicy="no-referrer"
-                    />
+                    <div className="p-1 mt-1 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <img
+                        src={property.image || property.images?.[0]}
+                        alt={property.title}
+                        className="w-28 h-24 rounded-xl object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
                     <div className="flex flex-col justify-center">
                       <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">{property.type}</p>
                       <h3 className="font-bold text-slate-900 leading-snug line-clamp-2">{property.title}</h3>
