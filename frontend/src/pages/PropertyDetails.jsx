@@ -63,7 +63,8 @@ export const PropertyDetails = () => {
   const WORD_LIMIT = 80;
   const roleValue = user?.role?.toUpperCase?.();
   const effectiveRole = roleValue || (API_BASE_URL ? null : 'LOCATAIRE');
-  const isLocataire = ['LOCATAIRE', 'ADMIN'].includes(effectiveRole);
+  const isLocataire = effectiveRole === 'LOCATAIRE';
+  const isAdmin = roleValue === 'ADMIN';
   const canBook = !user || isLocataire;
   const canContact = !user || isLocataire;
 
@@ -677,6 +678,11 @@ export const PropertyDetails = () => {
                     >
                       Réservé aux voyageurs
                     </Button>
+                  )}
+                  {isAdmin && (
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      Les comptes admin ne peuvent pas reserver.
+                    </p>
                   )}
                   <p className="text-center text-xs text-slate-500 dark:text-slate-400 mb-6">Aucun paiement débité maintenant</p>
 

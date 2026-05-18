@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { cn, formatDate } from '../lib/utils';
+import { getProfilePhotoUrl } from '../utils/imageHelpers';
 import {
   fetchAdminStats, fetchAdminUsers, deleteAdminUser,
   fetchAdminAnnonces, fetchAdminReservations
@@ -295,7 +296,7 @@ export const AdminPanel = () => {
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-3">
                                 <img
-                                  src={u.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom || 'U')}&background=6366f1&color=fff&size=40`}
+                                  src={getProfilePhotoUrl(u.photoUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom || 'U')}&background=6366f1&color=fff&size=40`}
                                   alt={u.nom}
                                   className="h-9 w-9 rounded-xl object-cover"
                                 />

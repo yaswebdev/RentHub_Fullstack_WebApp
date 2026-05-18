@@ -49,16 +49,16 @@ export default function App() {
                     <ProtectedRoute><Chat /></ProtectedRoute>
                   } />
                   <Route path="booking/:id" element={
-                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><Booking /></ProtectedRoute>
+                    <ProtectedRoute roles={["LOCATAIRE"]}><Booking /></ProtectedRoute>
                   } />
                   <Route path="profile" element={
                     <ProtectedRoute><Profile /></ProtectedRoute>
                   } />
                   <Route path="payment/success" element={
-                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><PaymentSuccess /></ProtectedRoute>
+                    <ProtectedRoute roles={["LOCATAIRE"]}><PaymentSuccess /></ProtectedRoute>
                   } />
                   <Route path="payment/cancel" element={
-                    <ProtectedRoute roles={["LOCATAIRE", "ADMIN"]}><PaymentCancel /></ProtectedRoute>
+                    <ProtectedRoute roles={["LOCATAIRE"]}><PaymentCancel /></ProtectedRoute>
                   } />
                   <Route path="host/annonces/nouveau" element={
                     <ProtectedRoute roles={["HOTE", "ADMIN"]}><HostNewListing /></ProtectedRoute>

@@ -81,6 +81,21 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional
+    public UserDTO updateDisplayName(String email, String nom) {
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+
+        String trimmed = nom == null ? null : nom.trim();
+        if (trimmed == null || trimmed.isEmpty()) {
+            throw new RuntimeException("Le nom est obligatoire");
+        }
+
+        user.setNom(trimmed);
+        userRepository.save(user);
+        return toDTO(user);
+    }
+
     private UserDTO toDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());

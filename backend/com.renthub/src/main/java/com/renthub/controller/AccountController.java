@@ -1,6 +1,7 @@
 package com.renthub.controller;
 
 import com.renthub.dto.ChangePasswordRequest;
+import com.renthub.dto.UpdateProfileNameRequest;
 import com.renthub.dto.UserDTO;
 import com.renthub.service.UserService;
 import jakarta.validation.Valid;
@@ -40,6 +41,11 @@ public class AccountController {
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
         userService.changePassword(authentication.getName(), request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/profile/name")
+    public ResponseEntity<UserDTO> updateProfileName(@Valid @RequestBody UpdateProfileNameRequest request, Authentication authentication) {
+        return ResponseEntity.ok(userService.updateDisplayName(authentication.getName(), request.getNom()));
     }
 
     /**

@@ -5,7 +5,12 @@
  * ──────────────────────────────────────────────────────────────────
  */
 import apiClient from './client';
-import { ENDPOINTS } from '../constants/api';
+import { ENDPOINTS, API_BASE_URL } from '../constants/api';
+
+const BACKEND_BASE_URL = API_BASE_URL || '';
+
+const normalizePhotoUrls = (urls = []) =>
+  urls.map((url) => (url?.startsWith('/') ? `${BACKEND_BASE_URL}${url}` : url));
 
 /** GET /api/admin/stats */
 export const fetchAdminStats = async () => {
@@ -31,7 +36,13 @@ export const fetchAdminAnnonces = async (page = 0, size = 20) => {
   const { data } = await apiClient.get(ENDPOINTS.ADMIN_ANNONCES, {
     params: { page, size, sort: 'createdAt,desc' },
   });
-  return data;
+  return {
+    ...data,
+    content: (data?.content || []).map((annonce) => ({
+      ...annonce,
+      photoUrls: normalizePhotoUrls(annonce.photoUrls || []),
+    })),
+  };
 };
 
 /** GET /api/admin/reservations?page=&size= */

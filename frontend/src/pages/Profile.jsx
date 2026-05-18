@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { uploadProfilePhoto, changePassword } from '../api/userAPI';
+import { uploadProfilePhoto, changePassword, updateProfileName } from '../api/userAPI';
 import { getProfilePhotoUrl } from '../utils/imageHelpers';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -13,6 +13,7 @@ export const Profile = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [chargementPhoto, setChargementPhoto] = useState(false);
   const [chargementMDP, setChargementMDP] = useState(false);
+  const [chargementNom, setChargementNom] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [succes, setSucces] = useState(null);
   const navigate = useNavigate();
@@ -74,6 +75,20 @@ export const Profile = () => {
     } finally { setChargementMDP(false); }
   };
 
+  const submitNom = async (e) => {
+    e.preventDefault();
+    const nom = e.target.displayName.value?.trim();
+    if (!nom) return setErreur('Veuillez saisir votre nom.');
+    setChargementNom(true); setErreur(null); setSucces(null);
+    try {
+      const updated = await updateProfileName(nom);
+      mettreAJourUtilisateur(updated);
+      setSucces('Nom mis à jour avec succès.');
+    } catch (err) {
+      setErreur(err.response?.data?.message || err.message || 'Échec de la mise à jour du nom');
+    } finally { setChargementNom(false); }
+  };
+
   return (
     <div className="pt-24 pb-16 min-h-screen bg-slate-50">
       <div className="container mx-auto px-4 max-w-3xl">
@@ -105,6 +120,16 @@ export const Profile = () => {
                 </div>
               </div>
             </div>
+
+            <form onSubmit={submitNom} className="space-y-4">
+              <Input
+                label="Nom"
+                name="displayName"
+                defaultValue={utilisateur?.displayName || ''}
+                placeholder="Votre nom"
+              />
+              <Button type="submit" isLoading={chargementNom}>Mettre à jour le nom</Button>
+            </form>
 
             <form onSubmit={submitPassword} className="space-y-4">
               <Input label="Mot de passe actuel" name="currentPassword" type="password" />
