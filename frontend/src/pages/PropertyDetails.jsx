@@ -19,11 +19,9 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { usePropriete } from '../hooks/useProprietes';
-import { creerChat } from '../api/chatAPI';
 import { fetchMesReservations } from '../api/reservationsAPI';
 import { fetchAvisByAnnonce, creerAvis } from '../api/avisAPI';
 import { API_BASE_URL } from '../constants/api';
-import { getDocs, query, where, collection, db } from '../firebase';
 
 /* Chargement paresseux de la carte (Leaflet est lourd) */
 const MapPropriete = lazy(() => import('../components/MapPropriete'));
@@ -223,31 +221,7 @@ export const PropertyDetails = () => {
         toast("Vous devez avoir une réservation pour contacter l'hôte.", 'info');
         return;
       }
-
-      // Mode dev Firebase : vérifier si une conversation existe déjà
-      const q = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
-      const snapshot = await getDocs(q);
-      let chatExistantId = null;
-
-      snapshot.forEach((d) => {
-        const participants = d.data().participants || [];
-        if (participants.includes(property.hostId)) chatExistantId = d.id;
-      });
-
-      if (chatExistantId) {
-        navigate(`/chat/${chatExistantId}`);
-      } else {
-        const nouveauChat = await creerChat(
-          [user.uid, property.hostId],
-          property.id,
-          property.title,
-          {
-            [user.uid]:      { name: user.displayName || 'Voyageur', photo: user.photoURL || '' },
-            [property.hostId]: { name: property.hostName || 'Hôte', photo: property.hostPhoto || '' },
-          }
-        );
-        navigate(`/chat/${nouveauChat.id}`);
-      }
+      toast("La messagerie est disponible uniquement avec le backend.", 'info');
     } catch (err) {
       console.error('[PropertyDetails] Erreur contact hôte :', err);
       toast('Impossible de contacter l\'hôte.', 'error');

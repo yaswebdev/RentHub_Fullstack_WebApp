@@ -6,6 +6,7 @@ import { Search } from './pages/Search';
 import { PropertyDetails } from './pages/PropertyDetails';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Chat } from './pages/Chat';
 import { Booking } from './pages/Booking';
@@ -15,6 +16,9 @@ import { PaymentSuccess } from './pages/PaymentSuccess';
 import { PaymentCancel } from './pages/PaymentCancel';
 import { Profile } from './pages/Profile';
 import { AdminPanel } from './pages/AdminPanel';
+import { Privacy } from './pages/Privacy';
+import { Terms } from './pages/Terms';
+import { SiteHowItWorks } from './pages/SiteHowItWorks';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -37,6 +41,10 @@ export default function App() {
                   <Route path="property/:id" element={<PropertyDetails />} />
                   <Route path="login" element={<Login />} />
                   <Route path="register" element={<Register />} />
+                  <Route path="reset-password" element={<ResetPassword />} />
+                  <Route path="confidentialite" element={<Privacy />} />
+                  <Route path="conditions" element={<Terms />} />
+                  <Route path="fonctionnement" element={<SiteHowItWorks />} />
 
                   {/* Routes protégées — connexion requise */}
                   <Route path="dashboard" element={

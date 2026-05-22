@@ -10,7 +10,6 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, onAuthStateChanged } from '../firebase';
 import { API_BASE_URL, CLE_TOKEN, CLE_UTILISATEUR } from '../constants/api';
 import { fetchProfil } from '../api/authAPI';
 
@@ -61,12 +60,7 @@ export const AuthProvider = ({ children }) => {
         setChargement(false);
       }
     } else {
-      /* ── Mode développement : écouter l'émulateur local ─────────── */
-      const desabonner = onAuthStateChanged(auth, (u) => {
-        setUtilisateur(normalizeUser(u));
-        setChargement(false);
-      });
-      return desabonner;
+      setChargement(false);
     }
   }, []);
 

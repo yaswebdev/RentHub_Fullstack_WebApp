@@ -18,9 +18,6 @@ import {
 import { API_BASE_URL } from '../constants/api';
 import { RESERVATIONS_MOCK } from '../mocks/index';
 
-// Imports mode dev
-import { db, collection, onSnapshot, query, where } from '../firebase';
-
 /**
  * Charger et gérer les réservations de l'utilisateur connecté.
  * @param {string} utilisateurId - UID de l'utilisateur
@@ -51,24 +48,8 @@ export function useReservations(utilisateurId) {
           setChargement(false);
         });
     } else {
-      // Mode développement → écoute temps réel
-      const q = query(
-        collection(db, 'bookings'),
-        where('guestId', '==', utilisateurId)
-      );
-      const desabonner = onSnapshot(
-        q,
-        (snapshot) => {
-          const donnees = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          setReservations(donnees.length > 0 ? donnees : RESERVATIONS_MOCK);
-          setChargement(false);
-        },
-        () => {
-          setReservations(RESERVATIONS_MOCK);
-          setChargement(false);
-        }
-      );
-      return desabonner;
+      setReservations(RESERVATIONS_MOCK);
+      setChargement(false);
     }
   }, [utilisateurId]);
 

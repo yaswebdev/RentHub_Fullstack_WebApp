@@ -8,10 +8,6 @@
 
 import apiClient from './client';
 import { ENDPOINTS, API_BASE_URL } from '../constants/api';
-import {
-  db, collection, addDoc, getDocs, onSnapshot,
-  query, where, serverTimestamp,
-} from '../firebase';
 
 const normalizeConversation = (dto) => ({
   id: dto.reservationId,
@@ -42,12 +38,7 @@ export async function fetchChats(utilisateurId) {
     const { data } = await apiClient.get(ENDPOINTS.CONVERSATIONS);
     return data.map(normalizeConversation);
   }
-
-  // Mode dev : requête locale (Firestore émulé)
-  const chatsRef = collection(db, 'chats');
-  const q = query(chatsRef, where('participants', 'array-contains', utilisateurId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  throw new Error('Messagerie disponible uniquement avec le backend.');
 }
 
 /**
@@ -59,11 +50,7 @@ export async function fetchMessages(reservationId) {
     const { data } = await apiClient.get(ENDPOINTS.MESSAGES(reservationId));
     return data.map(normalizeMessage);
   }
-
-  // Mode dev
-  const messagesRef = collection(db, 'chats', String(reservationId), 'messages');
-  const snapshot = await getDocs(messagesRef);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  throw new Error('Messagerie disponible uniquement avec le backend.');
 }
 
 /**
@@ -78,15 +65,7 @@ export async function envoyerMessage(reservationId, contenu, envoyeurId) {
     });
     return normalizeMessage(data);
   }
-
-  // Mode dev
-  const ref = await addDoc(collection(db, 'chats', String(reservationId), 'messages'), {
-    text: contenu,
-    senderId: envoyeurId,
-    createdAt: serverTimestamp(),
-    read: false,
-  });
-  return { id: ref.id, contenu };
+  throw new Error('Messagerie disponible uniquement avec le backend.');
 }
 
 /**
@@ -97,18 +76,7 @@ export async function creerChat(participants, proprieteId, proprieteTitre, detai
   if (API_BASE_URL) {
     throw new Error('Les conversations sont liées aux réservations. Utilisez une réservation existante.');
   }
-
-  // Mode dev
-  const ref = await addDoc(collection(db, 'chats'), {
-    participants,
-    participantDetails: detailsParticipants || {},
-    proprieteId,
-    proprieteTitre,
-    lastMessage: '',
-    lastMessageTime: serverTimestamp(),
-    createdAt: serverTimestamp(),
-  });
-  return { id: ref.id };
+  throw new Error('Messagerie disponible uniquement avec le backend.');
 }
 
 /**
@@ -133,11 +101,5 @@ export function abonnerMessages(reservationId, callback) {
       clearInterval(intervalId);
     };
   }
-
-  // Mode dev : onSnapshot Firestore
-  const messagesRef = collection(db, 'chats', String(reservationId), 'messages');
-  return onSnapshot(messagesRef, (snapshot) => {
-    const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    callback(messages);
-  });
+  return () => {};
 }

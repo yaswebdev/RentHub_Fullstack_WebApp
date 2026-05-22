@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS annonces (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     disponibilite BOOLEAN DEFAULT TRUE,
+    max_guests INTEGER DEFAULT 2,
+    bedrooms INTEGER DEFAULT 1,
+    bathrooms INTEGER DEFAULT 1,
+    amenities TEXT,
+    statut VARCHAR(30) DEFAULT 'ACTIVE',
+    minimum_stay INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_annonces_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -134,6 +140,39 @@ CREATE TABLE IF NOT EXISTS messages (
         ON DELETE CASCADE
 );
 
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT fk_password_reset_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+    );
+
+CREATE TABLE IF NOT EXISTS favorites (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    annonce_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_favorites_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_favorites_annonce
+        FOREIGN KEY (annonce_id)
+        REFERENCES annonces(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_favorites_user_annonce UNIQUE (user_id, annonce_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_annonces_user
 ON annonces(user_id);
 
@@ -149,11 +188,23 @@ ON messages(reservation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_expediteur
 ON messages(expediteur_id);
 
+CREATE INDEX IF NOT EXISTS idx_password_reset_user
+ON password_reset_tokens(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_token
+ON password_reset_tokens(token);
+
 CREATE INDEX IF NOT EXISTS idx_photos_annonce
 ON photos(annonce_id);
 
 CREATE INDEX IF NOT EXISTS idx_paiement_reservation
 ON paiements(reservation_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorites_user
+ON favorites(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorites_annonce
+ON favorites(annonce_id);
 
 CREATE INDEX IF NOT EXISTS idx_paiement_stripe_intent
 ON paiements(stripe_payment_intent_id);

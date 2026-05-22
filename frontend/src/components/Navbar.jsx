@@ -43,8 +43,6 @@ export const Navbar = () => {
             {!isAuthPage && (
               <div className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-500">
                 <button className="text-slate-900 border-b-2 border-slate-900 pb-2">Logements</button>
-                <button className="hover:text-slate-900 pb-2">Expériences</button>
-                <button className="hover:text-slate-900 pb-2">Services</button>
               </div>
             )}
 

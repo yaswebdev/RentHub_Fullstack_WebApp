@@ -103,6 +103,7 @@ export const AdminPanel = () => {
     } finally { setDeletingId(null); }
   };
 
+
   const filteredUsers = usersPage?.content?.filter(u =>
     !userSearch || u.nom?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase())
   ) || [];
@@ -437,6 +438,7 @@ export const AdminPanel = () => {
               )}
             </motion.div>
           )}
+
         </main>
       </div>
     </div>

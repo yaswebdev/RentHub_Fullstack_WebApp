@@ -65,9 +65,6 @@ export const Footer = () => {
           <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
             <h3 className="text-white font-bold mb-5">Assistance</h3>
             <ul className="space-y-3 text-sm text-slate-400">
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Centre d'aide</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Annulation d'une réservation</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Signaler un problème</a></li>
               <li>
                 <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/10">
                   <Mail className="h-4 w-4 text-primary-400" />
@@ -82,9 +79,9 @@ export const Footer = () => {
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
           <p>© {new Date().getFullYear()} RentHub Maroc, Inc. Tous droits réservés.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-white transition-colors">Confidentialité</a>
-            <a href="#" className="hover:text-white transition-colors">Conditions générales</a>
-            <a href="#" className="hover:text-white transition-colors">Plan du site</a>
+            <Link to="/confidentialite" className="hover:text-white transition-colors">Confidentialite</Link>
+            <Link to="/conditions" className="hover:text-white transition-colors">Conditions generales</Link>
+            <Link to="/fonctionnement" className="hover:text-white transition-colors">Fonctionnement du site</Link>
           </div>
         </div>
       </div>

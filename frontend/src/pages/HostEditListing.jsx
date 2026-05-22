@@ -23,6 +23,12 @@ export const HostEditListing = () => {
     adresse: '',
     latitude: '',
     longitude: '',
+    maxGuests: '2',
+    bedrooms: '1',
+    bathrooms: '1',
+    minimumStay: '1',
+    amenities: '',
+    statut: 'ACTIVE',
   });
   const [photos, setPhotos] = useState([]);
 
@@ -48,6 +54,12 @@ export const HostEditListing = () => {
           adresse: propriete.adresse || propriete.location || '',
           latitude: propriete.latitude ?? '',
           longitude: propriete.longitude ?? '',
+          maxGuests: propriete.maxGuests ?? '2',
+          bedrooms: propriete.bedrooms ?? '1',
+          bathrooms: propriete.bathrooms ?? '1',
+          minimumStay: propriete.minimumStay ?? '1',
+          amenities: (propriete.amenities || []).join(', '),
+          statut: propriete.statut || 'ACTIVE',
         });
         setExistingPhotos(propriete.images || []);
       })
@@ -60,6 +72,12 @@ export const HostEditListing = () => {
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const parseAmenities = (value) =>
+    value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -74,6 +92,12 @@ export const HostEditListing = () => {
         adresse: form.adresse.trim(),
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
+        maxGuests: form.maxGuests ? Number(form.maxGuests) : null,
+        bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+        minimumStay: form.minimumStay ? Number(form.minimumStay) : null,
+        amenities: parseAmenities(form.amenities),
+        statut: form.statut || 'ACTIVE',
       };
 
       await modifierPropriete(id, payload);
@@ -215,6 +239,61 @@ export const HostEditListing = () => {
                   value={form.longitude}
                   onChange={(e) => updateField('longitude', e.target.value)}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Voyageurs max"
+                  type="number"
+                  min="1"
+                  value={form.maxGuests}
+                  onChange={(e) => updateField('maxGuests', e.target.value)}
+                />
+                <Input
+                  label="Chambres"
+                  type="number"
+                  min="0"
+                  value={form.bedrooms}
+                  onChange={(e) => updateField('bedrooms', e.target.value)}
+                />
+                <Input
+                  label="Salles de bain"
+                  type="number"
+                  min="0"
+                  value={form.bathrooms}
+                  onChange={(e) => updateField('bathrooms', e.target.value)}
+                />
+                <Input
+                  label="Sejour minimum (nuits)"
+                  type="number"
+                  min="1"
+                  value={form.minimumStay}
+                  onChange={(e) => updateField('minimumStay', e.target.value)}
+                />
+              </div>
+
+              <div className="w-full space-y-2">
+                <label className="text-sm font-bold text-slate-700 tracking-tight">Equipements (separes par des virgules)</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition-all duration-200 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:border-primary-500"
+                  placeholder="Ex: WiFi, Cuisine equipee, Climatisation"
+                  value={form.amenities}
+                  onChange={(e) => updateField('amenities', e.target.value)}
+                />
+              </div>
+
+              <div className="w-full space-y-2">
+                <label className="text-sm font-bold text-slate-700 tracking-tight">Statut</label>
+                <select
+                  value={form.statut}
+                  onChange={(e) => updateField('statut', e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PAUSED">PAUSED</option>
+                  <option value="DRAFT">DRAFT</option>
+                </select>
               </div>
 
               {existingPhotos.length > 0 && (

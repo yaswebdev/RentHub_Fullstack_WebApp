@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, Chrome } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,7 +9,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { useAuth } from '../context/AuthContext';
-import { inscriptionUtilisateur, connexionGoogle } from '../api/authAPI';
+import { inscriptionUtilisateur } from '../api/authAPI';
 import { API_BASE_URL } from '../constants/api';
 import { cn } from '../lib/utils';
 
@@ -45,7 +45,7 @@ export const Register = () => {
         connecterAvecJWT(utilisateur, token);
         navigate('/dashboard');
       } else {
-        setErreur('Inscription par email disponible uniquement avec le backend. Utilisez Google.');
+        setErreur('Inscription par email disponible uniquement avec le backend.');
       }
     } catch (err) {
       setErreur(err.response?.data?.message || err.message || 'Échec de l\'inscription.');
@@ -54,21 +54,6 @@ export const Register = () => {
     }
   };
 
-  const handleGoogle = async () => {
-    setChargement(true);
-    setErreur(null);
-    try {
-      const { token, utilisateur } = await connexionGoogle();
-      if (API_BASE_URL && token) {
-        connecterAvecJWT(utilisateur, token);
-      }
-      navigate('/dashboard');
-    } catch (err) {
-      setErreur(err.message || 'Échec de la connexion Google.');
-    } finally {
-      setChargement(false);
-    }
-  };
 
   return (
     <div className="pt-32 pb-20 min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
@@ -150,24 +135,6 @@ export const Register = () => {
                 Créer mon compte <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-500">Ou continuer avec</span>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full rounded-xl"
-              onClick={handleGoogle}
-              isLoading={chargement}
-            >
-              <Chrome className="mr-2 h-4 w-4" /> Google
-            </Button>
 
             <p className="text-center text-sm text-slate-500">
               Déjà inscrit ?{' '}

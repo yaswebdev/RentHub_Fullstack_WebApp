@@ -15,21 +15,6 @@ import { fetchProprietes, fetchProprieteParId, fetchProprietesHote } from '../ap
 import { API_BASE_URL } from '../constants/api';
 import { PROPRIETES_MOCK } from '../mocks/index';
 
-// Imports mode dev uniquement
-import { db, collection, onSnapshot, query, limit, doc } from '../firebase';
-
-const VILLES_MAROC = [
-  'marrakech', 'casablanca', 'agadir', 'tanger', 'fès', 'fes',
-  'rabat', 'essaouira', 'meknès', 'ouarzazate', 'tétouan', 'tetouan',
-  'maroc', 'morocco',
-];
-
-const estMarocaine = (p) => {
-  const loc = typeof p.location === 'string' ? p.location.toLowerCase() : '';
-  const ville = (p.ville || '').toLowerCase();
-  return VILLES_MAROC.some((v) => loc.includes(v) || ville.includes(v));
-};
-
 /**
  * Charger la liste des propriétés avec filtres optionnels.
  * @param {object} filtres - { type, ville, prixMin, prixMax, ... }
@@ -59,24 +44,12 @@ export function useProprietes(filtres = {}, maximum = 20) {
     if (API_BASE_URL) {
       // Mode production → appel API REST
       charger();
-    } else {
-      // Mode développement → écoute temps réel (Firestore local)
-      const q = query(collection(db, 'properties'), limit(maximum));
-      const desabonner = onSnapshot(
-        q,
-        (snapshot) => {
-          const toutes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          const marocaines = toutes.filter(estMarocaine);
-          setProprietes(marocaines.length > 0 ? marocaines : PROPRIETES_MOCK);
-          setChargement(false);
-        },
-        () => {
-          setProprietes(PROPRIETES_MOCK);
-          setChargement(false);
-        }
-      );
-      return desabonner;
+      return undefined;
     }
+
+    setProprietes(PROPRIETES_MOCK);
+    setChargement(false);
+    return undefined;
   }, [charger, maximum]);
 
   return { proprietes, chargement, erreur, recharger: charger };
@@ -106,32 +79,10 @@ export function usePropriete(id) {
           setChargement(false);
         });
     } else {
-      // Mode développement → écoute temps réel
-      const desabonner = onSnapshot(
-        doc(db, 'properties', id),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setPropriete({ id: docSnap.id, ...docSnap.data() });
-          } else {
-            // Chercher dans les données fictives
-            const fictive = PROPRIETES_MOCK.find((p) => p.id === id);
-            if (fictive) {
-              setPropriete(fictive);
-            } else {
-              setErreur('Propriété introuvable.');
-            }
-          }
-          setChargement(false);
-        },
-        (err) => {
-          console.error('[usePropriete] Erreur :', err);
-          const fictive = PROPRIETES_MOCK.find((p) => p.id === id);
-          setPropriete(fictive || null);
-          setErreur(fictive ? null : 'Impossible de charger la propriété.');
-          setChargement(false);
-        }
-      );
-      return desabonner;
+      const fictive = PROPRIETES_MOCK.find((p) => p.id === id);
+      setPropriete(fictive || null);
+      setErreur(fictive ? null : 'Propriété introuvable.');
+      setChargement(false);
     }
   }, [id]);
 

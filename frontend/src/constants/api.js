@@ -31,6 +31,8 @@ export const ENDPOINTS = {
   AUTH_DECONNEXION:      '/api/auth/deconnexion',
   AUTH_PROFIL:           '/api/auth/profil',
   AUTH_RAFRAICHIR_TOKEN: '/api/auth/rafraichir',
+  AUTH_FORGOT_PASSWORD:  '/api/auth/forgot-password',
+  AUTH_RESET_PASSWORD:   '/api/auth/reset-password',
 
   // ── Propriétés ────────────────────────────────────────────────
   PROPRIETES:            '/api/annonces',

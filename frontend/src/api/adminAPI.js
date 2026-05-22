@@ -52,3 +52,4 @@ export const fetchAdminReservations = async (page = 0, size = 20) => {
   });
   return data;
 };
+

@@ -58,25 +58,36 @@ export const MapRecherche = ({ proprietes }) => {
     // les pins sur les coord fixes de la ville (ex: tous à Marrakech)
     const offsets = {};
 
-    proprietes.forEach((p) => {
-      const locStr = typeof p.location === 'string' ? p.location : (p.location?.city || p.ville || '');
-      const coords = coordonneesRapides(locStr);
-      
-      if (coords) {
-        // Disperser un peu les pings
-        const coordKey = `${coords.lat}-${coords.lon}`;
-        if (!offsets[coordKey]) offsets[coordKey] = 0;
-        
-        offsets[coordKey] += 1;
-        const offsetLat = coords.lat + (Math.random() - 0.5) * 0.02 * offsets[coordKey];
-        const offsetLon = coords.lon + (Math.random() - 0.5) * 0.02 * offsets[coordKey];
-
-        list.push({
-          prop: p,
-          lat: offsetLat,
-          lon: offsetLon
-        });
+    const resolveCoords = (p) => {
+      const directLat = p.latitude ?? p.lat;
+      const directLon = p.longitude ?? p.lon;
+      if (directLat != null && directLon != null) {
+        return { lat: Number(directLat), lon: Number(directLon) };
       }
+
+      const locStr = typeof p.location === 'string' ? p.location : (p.location?.city || p.ville || '');
+      if (!locStr) return null;
+
+      const city = locStr.split(',').map((part) => part.trim()).filter(Boolean).pop();
+      return coordonneesRapides(city || locStr);
+    };
+
+    proprietes.forEach((p) => {
+      const coords = resolveCoords(p);
+      if (!coords) return;
+
+      const coordKey = `${coords.lat}-${coords.lon}`;
+      if (!offsets[coordKey]) offsets[coordKey] = 0;
+
+      offsets[coordKey] += 1;
+      const offsetLat = coords.lat + (Math.random() - 0.5) * 0.02 * offsets[coordKey];
+      const offsetLon = coords.lon + (Math.random() - 0.5) * 0.02 * offsets[coordKey];
+
+      list.push({
+        prop: p,
+        lat: offsetLat,
+        lon: offsetLon,
+      });
     });
     return list;
   }, [proprietes]);

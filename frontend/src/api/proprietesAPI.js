@@ -16,6 +16,15 @@ const BACKEND_BASE_URL = API_BASE_URL || '';
 const normalizePhotoUrls = (urls = []) =>
   urls.map((url) => (url?.startsWith('/') ? `${BACKEND_BASE_URL}${url}` : url));
 
+const normalizeAmenities = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+};
+
 const normalizeAnnonce = (dto) => ({
   id: dto.id,
   title: dto.titre,
@@ -27,6 +36,12 @@ const normalizeAnnonce = (dto) => ({
   latitude: dto.latitude,
   longitude: dto.longitude,
   disponibilite: dto.disponibilite,
+  statut: dto.statut,
+  minimumStay: dto.minimumStay,
+  maxGuests: dto.maxGuests,
+  bedrooms: dto.bedrooms,
+  bathrooms: dto.bathrooms,
+  amenities: normalizeAmenities(dto.amenities),
   hostId: dto.userId,
   hostName: dto.userName,
   hostPhoto: getProfilePhotoUrl(dto.userPhotoUrl),
