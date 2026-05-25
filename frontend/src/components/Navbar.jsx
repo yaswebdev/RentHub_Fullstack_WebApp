@@ -48,11 +48,7 @@ export const Navbar = () => {
 
             {/* Menu Utilisateur (Desktop) */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
-              {!isHost && (
-                <button className="text-sm font-semibold text-slate-700 hover:text-slate-900">
-                  Devenir hôte
-                </button>
-              )}
+
               {user ? (
                 <div className="flex items-center gap-2">
                   {isAdmin && (

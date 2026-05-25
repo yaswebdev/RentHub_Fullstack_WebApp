@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Map, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
+import { Map, Facebook, Twitter, Instagram } from 'lucide-react';
 
 export const Footer = () => {
   return (
@@ -10,9 +10,9 @@ export const Footer = () => {
       <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
       
       <div className="container mx-auto px-4 py-16 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
-          {/* Brand Col */}
-          <div className="md:col-span-1">
+        <div className="mb-12">
+          {/* Brand */}
+          <div className="max-w-md">
             <Link to="/" className="flex items-center gap-2 mb-6">
               <div className="p-2 rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 shadow-lg shadow-primary-500/20">
                 <Map className="h-6 w-6 text-white" />
@@ -38,40 +38,6 @@ export const Footer = () => {
                 <Instagram className="h-4 w-4" />
               </a>
             </div>
-          </div>
-
-          {/* Links Cols */}
-          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
-            <h3 className="text-white font-bold mb-5">Explorez</h3>
-            <ul className="space-y-3 text-sm text-slate-400">
-              <li><Link to="/search?q=Marrakech" className="hover:text-primary-400 transition-colors">Marrakech</Link></li>
-              <li><Link to="/search?q=Casablanca" className="hover:text-primary-400 transition-colors">Casablanca</Link></li>
-              <li><Link to="/search?q=Agadir" className="hover:text-primary-400 transition-colors">Agadir</Link></li>
-              <li><Link to="/search?q=Tanger" className="hover:text-primary-400 transition-colors">Tanger</Link></li>
-              <li><Link to="/search?q=Fès" className="hover:text-primary-400 transition-colors">Fès</Link></li>
-            </ul>
-          </div>
-
-          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
-            <h3 className="text-white font-bold mb-5">Héberger</h3>
-            <ul className="space-y-3 text-sm text-slate-400">
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Devenez hôte RentHub</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Ressources pour les hôtes</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Forum de la communauté</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Accueil responsable</a></li>
-            </ul>
-          </div>
-
-          <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
-            <h3 className="text-white font-bold mb-5">Assistance</h3>
-            <ul className="space-y-3 text-sm text-slate-400">
-              <li>
-                <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/10">
-                  <Mail className="h-4 w-4 text-primary-400" />
-                  <a href="mailto:contact@renthub-maroc.ma" className="hover:text-white transition-colors">contact@renthub-maroc.ma</a>
-                </div>
-              </li>
-            </ul>
           </div>
         </div>
 
