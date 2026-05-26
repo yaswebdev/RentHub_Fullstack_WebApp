@@ -1,0 +1,187 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = 'registry.sportscore.tech'
+        DOCKER_IMAGE_NAME = 'renthub-backend'
+
+        DOCKER_CREDENTIALS = credentials('docker-registry-credentials')
+
+        JAVA_VERSION = '21'
+
+        APP_VERSION = sh(script: "grep -A 1 '<artifactId>com.renthub</artifactId>' pom.xml | grep '<version>' | sed 's/.*<version>\\(.*\\)<\\/version>.*/\\1/' | tr -d '\\t '", returnStdout: true).trim()
+
+        ENVIRONMENT = "${env.BRANCH_NAME == 'main' ? 'release' : 'dev'}"
+        BUILD_TAG = "${APP_VERSION}-${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        DEV_TAG = "${BUILD_TAG}-SNAPSHOT"
+        PROMOTED_TAG = "${APP_VERSION}-${env.BRANCH_NAME == 'main' ? 'release' : 'SNAPSHOT'}"
+
+        KUBE_NAMESPACE = "${env.BRANCH_NAME == 'main' ? 'renthub-prod' : 'renthub-dev'}"
+        DEPLOYMENT_NAME = 'renthub-backend'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
+        skipStagesAfterUnstable()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+                script {
+                    echo "Branch: ${env.BRANCH_NAME}"
+                    echo "Environment: ${ENVIRONMENT}"
+                    echo "App Version: ${APP_VERSION}"
+                    echo "Namespace: ${KUBE_NAMESPACE}"
+                }
+            }
+        }
+
+        stage('Build Application') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                echo 'Building Spring Boot application with Maven Wrapper...'
+                sh './mvnw clean package -DskipTests'
+
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+            post {
+                always {
+                    stash includes: 'target/*.jar', name: 'build-artifacts'
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                echo "Building and pushing Docker image with Jib on dev branch..."
+
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-registry-credentials',
+                                                      usernameVariable: 'REGISTRY_USER',
+                                                      passwordVariable: 'REGISTRY_PASS')]) {
+                        sh """
+                            ./mvnw -DskipTests com.google.cloud.tools:jib-maven-plugin:3.4.3:build \
+                                -Djib.to.auth.username=${REGISTRY_USER} \
+                                -Djib.to.auth.password=${REGISTRY_PASS} \
+                                -Djib.to.image=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DEV_TAG} \
+                                -Djib.to.tags=dev-latest
+                        """
+
+                        echo "Successfully built and pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DEV_TAG}"
+                        echo "Successfully pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:dev-latest"
+
+                        env.SOURCE_TAG = DEV_TAG
+                    }
+                }
+            }
+        }
+
+        stage('Promote Image') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo "Promoting image for ${env.BRANCH_NAME} branch..."
+
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-registry-credentials') {
+                        def devImage = "${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:dev-latest"
+
+                        sh "docker pull ${devImage}"
+
+                        sh "docker tag ${devImage} ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${PROMOTED_TAG}"
+                        sh "docker tag ${devImage} ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:release-latest"
+
+                        sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${PROMOTED_TAG}"
+                        sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:release-latest"
+
+                        echo "Successfully promoted dev-latest to ${PROMOTED_TAG}"
+
+                        env.DEPLOY_TAG = PROMOTED_TAG
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying to Kubernetes cluster (${ENVIRONMENT} environment)..."
+
+                script {
+                    def overlayPath = "k8s/overlays/${ENVIRONMENT}"
+
+                    echo "Using kustomize overlay: ${overlayPath}"
+                    echo "Deployment name: ${DEPLOYMENT_NAME}"
+
+                    withKubeConfig([credentialsId: 'kubernetes-credentials', serverUrl: '', namespace: "${KUBE_NAMESPACE}"]) {
+                        sh """
+                            echo "Ensuring namespace ${KUBE_NAMESPACE} exists..."
+
+                            if ! kubectl get namespace ${KUBE_NAMESPACE} >/dev/null 2>&1; then
+                                echo "Creating namespace ${KUBE_NAMESPACE}..."
+                                kubectl create namespace ${KUBE_NAMESPACE}
+                            else
+                                echo "Namespace ${KUBE_NAMESPACE} already exists."
+                            fi
+                        """
+
+                        withCredentials([usernamePassword(
+                            credentialsId: 'docker-registry-credentials',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )]) {
+                            sh """
+                                echo "Ensuring Docker registry secret exists in ${KUBE_NAMESPACE}..."
+
+                                if ! kubectl get secret docker-registry-secret -n ${KUBE_NAMESPACE} >/dev/null 2>&1; then
+                                    kubectl create secret docker-registry docker-registry-secret \
+                                        --docker-server=${DOCKER_REGISTRY} \
+                                        --docker-username=\$DOCKER_USER \
+                                        --docker-password=\$DOCKER_PASS \
+                                        --docker-email=devops@renthub.ma \
+                                        --namespace=${KUBE_NAMESPACE}
+                                else
+                                    echo "Docker registry secret already exists, skipping creation."
+                                fi
+                            """
+                        }
+
+                        sh """
+                            echo "Applying Kubernetes configuration for ${ENVIRONMENT} environment..."
+                            kubectl apply -k ${overlayPath} --namespace=${KUBE_NAMESPACE}
+                        """
+
+                        sh """
+                            echo "Waiting for rollout to complete..."
+                            kubectl rollout restart deployment ${DEPLOYMENT_NAME} \
+                                --namespace=${KUBE_NAMESPACE}
+
+                            kubectl rollout status deployment ${DEPLOYMENT_NAME} \
+                                --namespace=${KUBE_NAMESPACE} \
+                                --timeout=300s
+                        """
+
+                        sh """
+                            echo "Verifying deployment..."
+                            kubectl get pods -l app=${DEPLOYMENT_NAME},environment=${ENVIRONMENT} --namespace=${KUBE_NAMESPACE} || echo "Failed to get pods"
+                            kubectl get services ${DEPLOYMENT_NAME} --namespace=${KUBE_NAMESPACE} || echo "Failed to get services"
+                            kubectl get ingress ${DEPLOYMENT_NAME} --namespace=${KUBE_NAMESPACE} || echo "Failed to get ingress"
+                            kubectl get hpa ${DEPLOYMENT_NAME}-hpa --namespace=${KUBE_NAMESPACE} || echo "Failed to get HPA"
+                        """
+
+                        echo "Successfully deployed ${ENVIRONMENT} environment to ${KUBE_NAMESPACE} namespace"
+                    }
+                }
+            }
+        }
+    }
+}

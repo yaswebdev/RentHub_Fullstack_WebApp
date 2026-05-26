@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: renthub-prod
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      environment: production
+
+images:
+  - name: registry.sportscore.tech/renthub-backend
+    newTag: release-latest
+
+replicas:
+  - name: renthub-backend
+    count: 2
+
+patches:
+  - path: ingress-patch.yaml
+  - path: env-patch.yaml
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: renthub-backend
+      spec:
+        template:
+          spec:
+            containers:
+              - name: renthub-backend
+                resources:
+                  requests:
+                    memory: "2Gi"
+                    cpu: "1000m"
+                  limits:
+                    memory: "4Gi"
+                    cpu: "2000m"
