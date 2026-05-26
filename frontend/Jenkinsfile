@@ -1,0 +1,201 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = 'registry.sportscore.tech'
+        DOCKER_IMAGE_NAME = 'renthub-frontend'
+
+        DOCKER_CREDENTIALS = credentials('docker-registry-credentials')
+
+        NODE_VERSION = '18'
+
+        APP_VERSION = sh(script: "cat package.json | grep '\"version\"' | head -1 | awk -F: '{ print \$2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]'", returnStdout: true).trim()
+
+        ENVIRONMENT = "${env.BRANCH_NAME == 'main' ? 'release' : 'dev'}"
+        BUILD_TAG = "${APP_VERSION}-${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        DEV_TAG = "dev-${BUILD_TAG}"
+        PROMOTED_TAG = "${env.BRANCH_NAME == 'main' ? 'release' : 'dev'}-${APP_VERSION}"
+
+        KUBE_NAMESPACE = "renthub-${env.BRANCH_NAME == 'main' ? 'prod' : 'dev'}"
+        DEPLOYMENT_NAME = 'renthub-frontend'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
+        skipStagesAfterUnstable()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+                script {
+                    echo "Branch: ${env.BRANCH_NAME}"
+                    echo "Environment: ${ENVIRONMENT}"
+                    echo "App Version: ${APP_VERSION}"
+                    echo "Namespace: ${KUBE_NAMESPACE}"
+                }
+            }
+        }
+
+        stage('Build Application (Dev)') {
+            when {
+                branch 'dev'
+            }
+            agent {
+                docker {
+                    image "node:${NODE_VERSION}-alpine"
+                    args '-u root:root'
+                }
+            }
+            steps {
+                echo 'Installing dependencies and building React app for dev environment...'
+                sh 'npm ci'
+                sh 'VITE_API_URL=https://renthub-dev.reco6.com/api npm run build'
+
+                archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+            }
+            post {
+                always {
+                    stash includes: 'dist/**/*', name: 'build-artifacts'
+                }
+            }
+        }
+
+        stage('Build Application (Production)') {
+            when {
+                branch 'main'
+            }
+            agent {
+                docker {
+                    image "node:${NODE_VERSION}-alpine"
+                    args '-u root:root'
+                }
+            }
+            steps {
+                echo 'Installing dependencies and building React app for production environment...'
+                sh 'npm ci'
+                sh 'VITE_API_URL=https://renthub.reco6.com/api npm run build'
+
+                archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+            }
+            post {
+                always {
+                    stash includes: 'dist/**/*', name: 'build-artifacts'
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            when {
+                anyOf {
+                    branch 'dev'
+                    branch 'main'
+                }
+            }
+            steps {
+                echo "Building Docker image on ${env.BRANCH_NAME} branch..."
+
+                unstash 'build-artifacts'
+
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-registry-credentials') {
+                        if (env.BRANCH_NAME == 'dev') {
+                            def dockerImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DEV_TAG}")
+
+                            dockerImage.push()
+                            dockerImage.push('dev-latest')
+
+                            echo "Successfully built and pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DEV_TAG}"
+                            echo "Successfully pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:dev-latest"
+
+                            env.SOURCE_TAG = DEV_TAG
+                        } else if (env.BRANCH_NAME == 'main') {
+                            def dockerImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${PROMOTED_TAG}")
+
+                            dockerImage.push()
+                            dockerImage.push('release-latest')
+
+                            echo "Successfully built and pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${PROMOTED_TAG}"
+                            echo "Successfully pushed ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:release-latest"
+
+                            env.DEPLOY_TAG = PROMOTED_TAG
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying to Kubernetes cluster (${ENVIRONMENT} environment)..."
+
+                script {
+                    def overlayPath = "k8s/overlays/${ENVIRONMENT}"
+
+                    echo "Deploying overlay: ${overlayPath}"
+
+                    withKubeConfig([credentialsId: 'kubernetes-credentials', serverUrl: '', namespace: "${KUBE_NAMESPACE}"]) {
+                        sh """
+                            echo "Ensuring namespace ${KUBE_NAMESPACE} exists..."
+
+                            if ! kubectl get namespace ${KUBE_NAMESPACE} >/dev/null 2>&1; then
+                                kubectl create namespace ${KUBE_NAMESPACE}
+                            else
+                                echo "Namespace ${KUBE_NAMESPACE} already exists."
+                            fi
+                        """
+
+                        withCredentials([usernamePassword(
+                            credentialsId: 'docker-registry-credentials',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )]) {
+                            sh """
+                                echo "Ensuring Docker registry secret exists in ${KUBE_NAMESPACE}..."
+
+                                if ! kubectl get secret docker-registry-secret -n ${KUBE_NAMESPACE} >/dev/null 2>&1; then
+                                    kubectl create secret docker-registry docker-registry-secret \
+                                        --docker-server=${DOCKER_REGISTRY} \
+                                        --docker-username=\$DOCKER_USER \
+                                        --docker-password=\$DOCKER_PASS \
+                                        --docker-email=devops@renthub.ma \
+                                        --namespace=${KUBE_NAMESPACE}
+                                else
+                                    echo "Docker registry secret already exists, skipping creation."
+                                fi
+                            """
+                        }
+
+                        sh """
+                            echo "Applying Kubernetes configuration for ${ENVIRONMENT} environment..."
+                            kubectl apply -k ${overlayPath}
+                        """
+
+                        sh """
+                            echo "Waiting for rollout to complete..."
+                            kubectl rollout restart deployment ${DEPLOYMENT_NAME} \
+                                --namespace=${KUBE_NAMESPACE}
+
+                            kubectl rollout status deployment/${DEPLOYMENT_NAME} \
+                                --namespace=${KUBE_NAMESPACE} \
+                                --timeout=300s
+                        """
+
+                        sh """
+                            echo "Verifying deployment..."
+                            kubectl get pods -l app=${DEPLOYMENT_NAME} --namespace=${KUBE_NAMESPACE} || echo "Failed to get pods"
+                            kubectl get services ${DEPLOYMENT_NAME} --namespace=${KUBE_NAMESPACE} || echo "Failed to get services"
+                            kubectl get ingress ${DEPLOYMENT_NAME} --namespace=${KUBE_NAMESPACE} || echo "Failed to get ingress"
+                            kubectl get hpa ${DEPLOYMENT_NAME}-hpa --namespace=${KUBE_NAMESPACE} || echo "Failed to get HPA"
+                        """
+
+                        echo "Successfully deployed to ${KUBE_NAMESPACE} namespace"
+                    }
+                }
+            }
+        }
+    }
+}

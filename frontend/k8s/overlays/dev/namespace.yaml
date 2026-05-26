@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: renthub-dev
+  labels:
+    project: renthub
+    environment: non-production
+    managed-by: kustomize

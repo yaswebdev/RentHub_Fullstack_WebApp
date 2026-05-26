@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: renthub-frontend
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: renthub-dev.reco6.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: renthub-frontend
+            port:
+              number: 80

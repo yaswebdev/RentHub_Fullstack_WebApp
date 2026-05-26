@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: renthub-dev
+
+bases:
+  - ../../base
+
+images:
+  - name: registry.sportscore.tech/renthub-frontend
+    newTag: dev-latest
+
+replicas:
+  - name: renthub-frontend
+    count: 1
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: renthub-frontend-hpa
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "https://renthub-dev.reco6.com/api"
+    target:
+      kind: Deployment
+      name: renthub-frontend
+
+resources:
+  - namespace.yaml
+  - ingress.yaml
